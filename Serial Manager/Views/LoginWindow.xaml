@@ -17,11 +17,13 @@
         </Grid.ColumnDefinitions>
 
         <TextBlock Text="Benutzername:" VerticalAlignment="Center"/>
-        <TextBox x:Name="txtUsername" Grid.Column="1" Margin="0,4"/>
+        <TextBox x:Name="txtUsername" Grid.Column="1" Margin="0,4"
+                 Height="30" VerticalContentAlignment="Center" Padding="4,0"/>
 
         <TextBlock Grid.Row="1" Text="Passwort:" VerticalAlignment="Center"/>
         <PasswordBox x:Name="txtPassword" Grid.Row="1" Grid.Column="1"
-                     Margin="0,4" KeyDown="txtPassword_KeyDown" Height="30"/>
+                     Margin="0,4" KeyDown="txtPassword_KeyDown" Height="30"
+                     VerticalContentAlignment="Center" Padding="4,0"/>
 
         <TextBlock x:Name="lblError" Grid.Row="2" Grid.ColumnSpan="2"
                    Foreground="Red" TextWrapping="Wrap" Margin="0,6"/>

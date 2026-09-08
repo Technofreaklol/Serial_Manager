@@ -110,6 +110,7 @@ public class DatabaseInitializer
             if (db.Database.IsMySql())
             {
                 db.Database.Migrate();
+                EnsureCoreTablesMySql(db);
                 RepairSerialHistoryIndex(db);
 
                 message = "MySQL-Migration erfolgreich abgeschlossen.";
@@ -180,6 +181,110 @@ public class DatabaseInitializer
             );");
     }
 
+    private static void EnsureCoreTablesMySql(SerialDbContext db)
+    {
+        if (!db.Database.IsMySql())
+            return;
+
+        // Sicherheitsnetz: __EFMigrationsHistory kann eine Migration als
+        // "angewendet" führen, obwohl die zugehörige Tabelle fehlt
+        // (z. B. nach versehentlichem Leeren/Truncate der Datenbank).
+        // Migrate() würde diese Migration dann NICHT erneut ausführen,
+        // da es sich rein auf die History verlässt. Deshalb hier direkt
+        // und unabhängig vom Migrationsverlauf prüfen/anlegen.
+
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `Articles` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `ArticleNumber` varchar(255) NOT NULL,
+                `Description` longtext NOT NULL,
+                `CurrentSerialNumber` int NOT NULL,
+                `RowVersion` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `IX_Articles_ArticleNumber` (`ArticleNumber`)
+            ) CHARACTER SET=utf8mb4;");
+
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `Machines` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Name` varchar(255) NOT NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `IX_Machines_Name` (`Name`)
+            ) CHARACTER SET=utf8mb4;");
+
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `SerialHistories` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `ArticleNumber` varchar(255) NOT NULL,
+                `SerialNumber` varchar(255) NOT NULL,
+                `Created` datetime(6) NOT NULL,
+                `Machine` longtext NOT NULL,
+                `Operator` longtext NOT NULL,
+                `Remark` longtext NULL,
+                `LabelPrinted` tinyint(1) NOT NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `IX_SerialHistories_ArticleNumber_SerialNumber` (`ArticleNumber`, `SerialNumber`)
+            ) CHARACTER SET=utf8mb4;");
+
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `Settings` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Key` varchar(255) NOT NULL,
+                `Value` longtext NOT NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `IX_Settings_Key` (`Key`)
+            ) CHARACTER SET=utf8mb4;");
+
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `Users` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Username` varchar(255) NOT NULL,
+                `PasswordHash` longtext NOT NULL,
+                `FullName` longtext NOT NULL,
+                `Role` varchar(255) NOT NULL,
+                `IsActive` tinyint(1) NOT NULL,
+                `Created` datetime(6) NOT NULL,
+                `LastLogin` datetime(6) NULL,
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `IX_Users_Username` (`Username`)
+            ) CHARACTER SET=utf8mb4;");
+
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `AuditLogEntries` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Created` datetime(6) NOT NULL,
+                `Username` longtext NOT NULL,
+                `Action` longtext NOT NULL,
+                `Details` longtext NOT NULL,
+                PRIMARY KEY (`Id`)
+            ) CHARACTER SET=utf8mb4;");
+
+        // Falls Articles schon vor Einführung der IsActive-Spalte existierte.
+        var connection = db.Database.GetDbConnection();
+        connection.Open();
+
+        try
+        {
+            using var check = connection.CreateCommand();
+            check.CommandText = @"SELECT COUNT(*) FROM information_schema.columns
+                                  WHERE table_schema = DATABASE()
+                                    AND table_name = 'Articles'
+                                    AND column_name = 'IsActive';";
+
+            if (Convert.ToInt32(check.ExecuteScalar()) == 0)
+            {
+                using var alter = connection.CreateCommand();
+                alter.CommandText =
+                    "ALTER TABLE `Articles` ADD COLUMN `IsActive` tinyint(1) NOT NULL DEFAULT 1;";
+                alter.ExecuteNonQuery();
+            }
+        }
+        finally
+        {
+            connection.Close();
+        }
+    }
     private static void RepairSerialHistoryIndex(SerialDbContext db)
     {
         // Frühe Versionen hatten SerialNumber allein als UNIQUE-Index.

@@ -9,6 +9,7 @@ namespace SerialManager.Views;
 public partial class DatabaseSetupWindow : Window
 {
     private readonly DatabaseConfigurationService _configService = new();
+    private readonly BackupService _backupService = new();
     private readonly WindowTitleService _titleService = new();
     private readonly DatabaseInitializer _initializer = new();
     private readonly DatabaseDiagnosticService _diagnostic = new();
@@ -256,19 +257,69 @@ public partial class DatabaseSetupWindow : Window
         txtStatus.ScrollToEnd();
     }
 
-    private void Initialize_Click(object sender, RoutedEventArgs e)
+    private async void Initialize_Click(object sender, RoutedEventArgs e)
     {
         SaveConfiguration();
 
-        if (_initializer.Initialize(out string message))
+        btnInitialize.IsEnabled = false;
+        progressPanel.Visibility = Visibility.Visible;
+        progressBar.IsIndeterminate = false;
+        progressBar.Value = 0;
+        txtProgressStatus.Text = "Prüfe vorhandenen Datenbestand...";
+
+        string? backupFile = null;
+
+        try
         {
-            ShowSuccess(message);
+            if (_backupService.HasExistingDatabase())
+            {
+                var progress = new Progress<BackupProgress>(p =>
+                {
+                    progressBar.Value = p.Percent;
+                    txtProgressStatus.Text = p.Message;
+                });
+
+                backupFile = await Task.Run(() => _backupService.CreateBackup(progress));
+            }
+            else
+            {
+                txtProgressStatus.Text = "Kein bestehender Datenbestand gefunden – kein Backup nötig.";
+            }
+        }
+        catch (Exception ex)
+        {
+            progressPanel.Visibility = Visibility.Collapsed;
+            btnInitialize.IsEnabled = true;
+            ShowError("Backup fehlgeschlagen, Einrichtung wurde abgebrochen:\n\n" + ex.Message);
+            return;
+        }
+
+        progressBar.IsIndeterminate = true;
+        txtProgressStatus.Text = "Datenbank wird eingerichtet/aktualisiert...";
+
+        bool success = false;
+        string message = string.Empty;
+
+        await Task.Run(() =>
+        {
+            success = _initializer.Initialize(out message);
+        });
+
+        progressPanel.Visibility = Visibility.Collapsed;
+        btnInitialize.IsEnabled = true;
+
+        string backupNote = backupFile != null
+            ? $"\n\nBackup vor der Aktualisierung:\n{backupFile}"
+            : "";
+
+        if (success)
+        {
+            ShowSuccess(message + backupNote);
             RefreshStatus_Click(sender, e);
         }
         else
         {
-            ShowError(message);
+            ShowError(message + backupNote);
         }
     }
-
 }

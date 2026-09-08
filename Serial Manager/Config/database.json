@@ -7,7 +7,7 @@
     "Server": "localhost",
     "Port": 3306,
     "Database": "serialmanager",
-    "Username": "",
+    "Username": "serialmanager",
     "Password": "",
     "ServerVersion": ""
   }

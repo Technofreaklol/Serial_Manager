@@ -42,7 +42,7 @@
 			<TextBox x:Name="txtUsername" Grid.Row="1" Grid.Column="1" Margin="0,3"/>
 
 			<TextBlock Grid.Row="2" Text="Passwort:" VerticalAlignment="Center"/>
-			<PasswordBox x:Name="txtPassword" Grid.Row="2" Grid.Column="1" Margin="0,3" Height="30"/>
+            <PasswordBox x:Name="txtPassword" Grid.Row="2" Grid.Column="1" VerticalContentAlignment="Center" Margin="0,3" Height="30"/>
 
 			<TextBlock Grid.Row="3" Grid.Column="1"
                        Text="Beim Bearbeiten leer lassen, um das Passwort nicht zu ändern."

@@ -50,9 +50,16 @@ public partial class MainWindow : Window
         miResetSerial.Visibility = visibility;
         miSettings.Visibility = visibility;
         miDatabase.Visibility = visibility;
+        miMigrationAssistant.Visibility = visibility;
         miUsers.Visibility = visibility;
         miAuditLog.Visibility = visibility;
         btnMachinesToolbar.Visibility = visibility;
+
+        sepDateiTop.Visibility = visibility;
+        sepDateiBottom.Visibility = visibility;
+        sepSerienTop.Visibility = visibility;
+        sepExtrasTop.Visibility = visibility;
+        sepExtrasMid.Visibility = visibility;
     }
 
     private bool RequireAdmin()
@@ -221,13 +228,11 @@ public partial class MainWindow : Window
 
     private void Refresh_Click(object sender, RoutedEventArgs e)
     {
-        LoadArticleList();
-
-        cmbMachines.ItemsSource = null;
-        cmbMachines.ItemsSource = _machineService.GetMachines();
+        RefreshData();
 
         lblStatus.Text = "Daten wurden aktualisiert.";
     }
+
 
     private void RefreshDashboard()
     {
@@ -332,10 +337,15 @@ public partial class MainWindow : Window
     private void MenuRestore_Click(object sender, RoutedEventArgs e)
     {
         if (!RequireAdmin()) return;
+
+        var provider = new DatabaseConfigurationService().Load().Provider;
+
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
             InitialDirectory = AppPaths.BackupsFolder,
-            Filter = "SQLite Datenbank (*.db)|*.db"
+            Filter = provider == "SQLite"
+                ? "SQLite Datenbank (*.db)|*.db"
+                : "SerialManager-Backup (*.smbak)|*.smbak"
         };
 
         if (dialog.ShowDialog() != true)
@@ -398,13 +408,20 @@ public partial class MainWindow : Window
         var selectedArticle = cmbArticles.SelectedItem as Article;
         var selectedMachine = cmbMachines.SelectedItem as Machine;
 
+        // Den kompletten Artikel-Neuladevorgang (inkl. ItemsSource-Reset)
+        // vor dem Filter-Handler abschirmen – sonst öffnet ein kurzzeitig
+        // ungültiger Zwischenzustand (Text noch alt, SelectedItem schon
+        // null) versehentlich das Dropdown.
+        _suppressTextChanged = true;
+
         LoadArticleList();
-        cmbMachines.ItemsSource = _machineService.GetMachines(); ;
+
+        var machines = _machineService.GetMachines();
+        cmbMachines.ItemsSource = machines;
 
         if (selectedArticle != null)
         {
-            var article = _articleService
-                .GetArticles()
+            var article = _allArticles
                 .FirstOrDefault(a => a.Id == selectedArticle.Id);
 
             if (article != null)
@@ -413,17 +430,25 @@ public partial class MainWindow : Window
             }
         }
 
+        cmbArticles.IsDropDownOpen = false;
+        _suppressTextChanged = false;
+
         if (selectedMachine != null)
         {
-            var machine = _machineService
-                .GetMachines()
-                .FirstOrDefault(m => m.Id == selectedMachine.Id);
+            // Wichtig: aus derselben Liste nachschlagen, die auch als
+            // ItemsSource gesetzt wurde – sonst findet die ComboBox das
+            // Element nicht (andere Objektinstanz) und die Auswahl bleibt leer.
+            var machine = machines.FirstOrDefault(m => m.Id == selectedMachine.Id);
 
             if (machine != null)
             {
                 cmbMachines.SelectedItem = machine;
             }
         }
+
+        dgHistory.ItemsSource = cmbArticles.SelectedItem is Article selected
+            ? _serialService.GetHistory(selected.ArticleNumber)
+            : null;
 
         RefreshDashboard();
     }
@@ -622,7 +647,12 @@ public partial class MainWindow : Window
 
         new AuditLogWindow { Owner = this }.ShowDialog();
     }
+    private void MenuMigrationAssistant_Click(object sender, RoutedEventArgs e)
+    {
+        if (!RequireAdmin()) return;
 
+        new MigrationAssistantWindow { Owner = this }.ShowDialog();
+    }
     private void cmbArticles_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_suppressTextChanged)
@@ -646,7 +676,14 @@ public partial class MainWindow : Window
         if (cmbArticles.Template.FindName("PART_EditableTextBox", cmbArticles) is TextBox editableTextBox)
             editableTextBox.CaretIndex = filter.Length;
 
-        cmbArticles.IsDropDownOpen = filtered.Count > 0;
+        // Nicht wieder aufklappen, wenn der Text exakt der bereits
+        // ausgewählten Artikelnummer entspricht (z. B. direkt nach einer
+        // Auswahl per Klick) – nur beim aktiven Tippen/Suchen aufklappen.
+        bool isExactSelectedMatch =
+            cmbArticles.SelectedItem is Article selected &&
+            string.Equals(selected.ArticleNumber, filter, StringComparison.OrdinalIgnoreCase);
+
+        cmbArticles.IsDropDownOpen = filtered.Count > 0 && !isExactSelectedMatch;
         _suppressTextChanged = false;
     }
     private void MenuChangePassword_Click(object sender, RoutedEventArgs e)

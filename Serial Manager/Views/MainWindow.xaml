@@ -21,14 +21,14 @@
                 <MenuItem Header="Abmelden"
                   Click="MenuLogout_Click"/>
 
-                    <Separator/>
-                    
-                    <MenuItem x:Name="miBackup" Header="Backup erstellen..."
+                <Separator x:Name="sepDateiTop"/>
+
+                <MenuItem x:Name="miBackup" Header="Backup erstellen..."
                   Click="MenuBackup_Click"/>
                 <MenuItem x:Name="miRestore" Header="Backup wiederherstellen..."
                   Click="MenuRestore_Click"/>
 
-                <Separator/>
+                <Separator x:Name="sepDateiBottom"/>
                 <MenuItem Header="Beenden"
                   Click="MenuExit_Click"/>
             </MenuItem>
@@ -43,7 +43,7 @@
             <MenuItem Header="_Seriennummern">
                 <MenuItem x:Name="miResetSerial" Header="Seriennummer anpassen"
 Click="MenuResetSerial_Click"/>
-                <Separator/>
+                <Separator x:Name="sepSerienTop"/>
                 <MenuItem Header="Batch-Seriennummern..."
               Click="BatchSerial_Click"/>
                 <Separator/>
@@ -54,21 +54,26 @@ Click="MenuResetSerial_Click"/>
             <MenuItem Header="_Extras">
                 <MenuItem Header="Passwort ändern..."
                           Click="MenuChangePassword_Click"/>
-                <Separator/>
+
+                <Separator x:Name="sepExtrasTop"/>
+
                 <MenuItem x:Name="miSettings" Header="Einstellungen..."
               Click="Settings_Click"/>
 
-                <Separator/>
+                <Separator x:Name="sepExtrasMid"/>
 
                 <MenuItem x:Name="miDatabase" Header="Datenbank..."
               Click="Database_Click"/>
 
+                <MenuItem x:Name="miMigrationAssistant" Header="Datenbank-Migration..."
+                          Click="MenuMigrationAssistant_Click"/>
+
                 <MenuItem x:Name="miUsers" Header="Benutzer verwalten..."
                           Click="MenuUsers_Click"/>
-            </MenuItem>
-            
-            <MenuItem x:Name="miAuditLog" Header="Audit-Log..."
+
+                <MenuItem x:Name="miAuditLog" Header="Audit-Log..."
                           Click="MenuAuditLog_Click"/>
+            </MenuItem>
 
             <MenuItem Header="_Hilfe">
                 <MenuItem Header="Über"
@@ -78,22 +83,26 @@ Click="MenuResetSerial_Click"/>
         </Menu>
 
         <!-- Toolbar -->
-        <ToolBarTray Grid.Row="1">
-            <ToolBar>
+        <Border Grid.Row="1"
+                Background="#F0F0F0"
+                BorderBrush="#D0D0D0"
+                BorderThickness="0,0,0,1"
+                Padding="4">
+            <StackPanel Orientation="Horizontal">
 
-                <Button Content="📦 Artikel"
+                <Button Content="Artikel"
                         Click="MenuArticles_Click"/>
 
-                <Button x:Name="btnMachinesToolbar" Content="🏭 Maschinen"
+                <Button x:Name="btnMachinesToolbar" Content="Maschinen"
                         Click="MenuMachines_Click"/>
 
                 <Separator/>
 
-                <Button Content="🔄 Aktualisieren"
+                <Button Content="Aktualisieren"
                         Click="Refresh_Click"/>
 
-            </ToolBar>
-        </ToolBarTray>
+            </StackPanel>
+        </Border>
 
         <!-- Hauptbereich -->
         <Grid Grid.Row="2" Margin="20">
@@ -333,6 +342,10 @@ Click="MenuResetSerial_Click"/>
                             <DataGridTextColumn Header="Maschine"
                                                 Binding="{Binding Machine}"
                                                 Width="150"/>
+
+                            <DataGridTextColumn Header="Erstellt von"
+                                                Binding="{Binding Operator}"
+                                                Width="140"/>
 
                         </DataGrid.Columns>
 

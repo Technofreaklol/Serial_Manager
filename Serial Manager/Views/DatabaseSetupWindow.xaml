@@ -131,6 +131,7 @@
                     <PasswordBox x:Name="txtPassword"
                                  Grid.Row="4"
                                  Grid.Column="1"
+                                 VerticalContentAlignment="Center"
                                  Margin="0,10,0,0" Height="30"/>
 
                 </Grid>
@@ -145,25 +146,36 @@
           Margin="0,15,0,0"
           Header="Aktionen">
 
-            <StackPanel Orientation="Horizontal"
-                Margin="10">
+            <StackPanel Margin="10">
 
-                <Button Width="180"
-                Height="35"
-                Margin="0,0,10,0"
-                Content="Initialisieren"
-                Click="Initialize_Click"/>
+                <StackPanel Orientation="Horizontal">
 
-                <Button Width="180"
-                Height="35"
-                Margin="0,0,10,0"
-                Content="Status aktualisieren"
-                Click="RefreshStatus_Click"/>
+                    <Button x:Name="btnInitialize"
+                    Width="180"
+                    Height="35"
+                    Margin="0,0,10,0"
+                    Content="Initialisieren"
+                    Click="Initialize_Click"/>
 
-                <Button Width="180"
-                Height="35"
-                Content="Datenbank reparieren"
-                Click="RepairDatabase_Click"/>
+                    <Button Width="180"
+                    Height="35"
+                    Margin="0,0,10,0"
+                    Content="Status aktualisieren"
+                    Click="RefreshStatus_Click"/>
+
+                    <Button Width="180"
+                    Height="35"
+                    Content="Datenbank reparieren"
+                    Click="RepairDatabase_Click"/>
+
+                </StackPanel>
+
+                <StackPanel x:Name="progressPanel"
+                            Margin="0,10,0,0"
+                            Visibility="Collapsed">
+                    <ProgressBar x:Name="progressBar" Height="18" Minimum="0" Maximum="100"/>
+                    <TextBlock x:Name="txtProgressStatus" Margin="0,4,0,0" FontSize="11" Foreground="Gray"/>
+                </StackPanel>
 
             </StackPanel>
 

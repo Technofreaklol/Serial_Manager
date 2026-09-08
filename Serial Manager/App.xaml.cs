@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using SerialManager.Data;
 using SerialManager.Services;
 using SerialManager.Views;
 using System.Windows;
@@ -44,7 +46,6 @@ public partial class App : Application
         var splash = new SplashWindow();
         splash.Show();
 
-        // Sicherstellen, dass der Splash zuerst gerendert wird
         await Dispatcher.InvokeAsync(
             () => { },
             DispatcherPriority.Render);
@@ -75,10 +76,46 @@ public partial class App : Application
             });
 
             if (databaseCheck.CanStart)
-                break;
+            {
+                // ---------------------------------------------
+                // Datenbankstruktur prüfen (Tabellen/Migrationen)
+                // ---------------------------------------------
+                if (await EnsureDatabaseStructureAsync(splash))
+                    break;
+
+                // Struktur konnte nicht automatisch hergestellt
+                // werden → direkt zur Datenbankeinrichtung springen.
+                splash.Hide();
+
+                MessageBox.Show(
+                    "Mit der Datenbankstruktur stimmt etwas nicht " +
+                    "(fehlende oder fehlerhafte Tabellen) und konnte " +
+                    "nicht automatisch behoben werden.\n\n" +
+                    "Die Datenbankeinrichtung wird geöffnet.",
+                    "Datenbankproblem",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                var setupWindow = new DatabaseSetupWindow();
+
+                if (setupWindow.ShowDialog() != true)
+                {
+                    splash.Close();
+                    Shutdown();
+                    return;
+                }
+
+                splash.Show();
+
+                await Dispatcher.InvokeAsync(
+                    () => { },
+                    DispatcherPriority.Render);
+
+                continue;
+            }
 
             // -----------------------------------------------------
-            // Datenbankfehler
+            // Datenbankfehler (keine Verbindung möglich)
             // -----------------------------------------------------
             splash.Hide();
 
@@ -177,56 +214,6 @@ public partial class App : Application
         }
 
         // ---------------------------------------------------------
-        // WICHTIG:
-        // Bei SQLite sicherstellen, dass die Datenbanktabellen
-        // vorhanden sind.
-        //
-        // CanStartApplication() gibt bei SQLite sofort "true"
-        // zurück und würde InitializeDatabase() sonst überspringen.
-        // ---------------------------------------------------------
-        var currentConfig =
-            new DatabaseConfigurationService().Load();
-
-        if (currentConfig.Provider == "SQLite")
-        {
-            splash.SetStatus("SQLite-Datenbank wird vorbereitet …");
-
-            await Dispatcher.InvokeAsync(
-                () => { },
-                DispatcherPriority.Render);
-
-            var initializer = new DatabaseInitializer();
-
-            var databaseInitialization = await Task.Run(() =>
-            {
-                string initMessage;
-
-                bool initialized =
-                    initializer.InitializeDatabase(
-                        out initMessage);
-
-                return new DatabaseInitializationResult(
-                    initialized,
-                    initMessage);
-            });
-
-            if (!databaseInitialization.Success)
-            {
-                splash.Hide();
-
-                MessageBox.Show(
-                    databaseInitialization.Message,
-                    "Fehler beim Initialisieren der Datenbank",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-
-                splash.Close();
-                Shutdown();
-                return;
-            }
-        }
-
-        // ---------------------------------------------------------
         // Einstellungen laden
         // ---------------------------------------------------------
         splash.SetStatus("Einstellungen werden geladen …");
@@ -242,7 +229,9 @@ public partial class App : Application
         // ---------------------------------------------------------
         splash.SetStatus("Anmeldung wird geprüft …");
 
-        await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+        await Dispatcher.InvokeAsync(
+            () => { },
+            DispatcherPriority.Render);
 
         var userService = new UserService();
 
@@ -297,7 +286,142 @@ public partial class App : Application
         await splash.CloseAnimatedAsync();
     }
 
+    private async Task<bool> EnsureDatabaseStructureAsync(SplashWindow splash)
+    {
+        var config = new DatabaseConfigurationService().Load();
+        var initializer = new DatabaseInitializer();
 
+        if (config.Provider == "SQLite")
+        {
+            splash.SetStatus("SQLite-Datenbank wird vorbereitet …");
+
+            await Dispatcher.InvokeAsync(
+                () => { },
+                DispatcherPriority.Render);
+
+            return await Task.Run(() =>
+            {
+                string message;
+                return initializer.InitializeDatabase(out message);
+            });
+        }
+
+        // MySQL: sowohl ausstehende Migrationen als auch fehlende
+        // Tabellen trotz "aktuellem" Verlauf berücksichtigen.
+        bool needsRepair;
+
+        try
+        {
+            needsRepair = await Task.Run(() =>
+            {
+                using var db = DbContextFactory.Create();
+
+                if (db.Database.GetPendingMigrations().Any())
+                    return true;
+
+                try
+                {
+                    _ = db.Articles.Take(1).Count();
+                    _ = db.Machines.Take(1).Count();
+                    _ = db.SerialHistories.Take(1).Count();
+                    _ = db.Settings.Take(1).Count();
+                    _ = db.Users.Take(1).Count();
+                    _ = db.AuditLogEntries.Take(1).Count();
+                    return false;
+                }
+                catch
+                {
+                    return true;
+                }
+            });
+        }
+        catch
+        {
+            return false;
+        }
+
+        if (needsRepair)
+        {
+            splash.SetStatus("Datenbank wird gesichert …");
+
+            await Dispatcher.InvokeAsync(
+                () => { },
+                DispatcherPriority.Render);
+
+            var backupService = new BackupService();
+            string? backupError = null;
+
+            bool backupOk = await Task.Run(() =>
+            {
+                try
+                {
+                    if (backupService.HasExistingDatabase())
+                        backupService.CreateBackup();
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    backupError = ex.Message;
+                    return false;
+                }
+            });
+
+            if (!backupOk)
+            {
+                splash.Hide();
+
+                var proceedAnyway = MessageBox.Show(
+                    "Vor der automatischen Datenbank-Aktualisierung konnte kein Backup " +
+                    $"erstellt werden:\n\n{backupError}\n\nTrotzdem fortfahren?",
+                    "Backup fehlgeschlagen",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (proceedAnyway != MessageBoxResult.Yes)
+                    return false;
+
+                splash.Show();
+
+                await Dispatcher.InvokeAsync(
+                    () => { },
+                    DispatcherPriority.Render);
+            }
+
+            splash.SetStatus("Datenbank wird aktualisiert …");
+
+            await Dispatcher.InvokeAsync(
+                () => { },
+                DispatcherPriority.Render);
+
+            bool migrated = await Task.Run(() =>
+            {
+                string message;
+                return initializer.InitializeDatabase(out message);
+            });
+
+            if (!migrated)
+                return false;
+        }
+
+        // Abschließende Kontrolle: Sind die wichtigsten Tabellen jetzt
+        // tatsächlich lesbar?
+        return await Task.Run(() =>
+        {
+            try
+            {
+                using var db = DbContextFactory.Create();
+                _ = db.Articles.Take(1).Count();
+                _ = db.Users.Take(1).Count();
+                _ = db.AuditLogEntries.Take(1).Count();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        });
+    }
     private void InitializeSettings()
     {
         try

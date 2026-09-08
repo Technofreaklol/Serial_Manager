@@ -5,10 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SerialManager.Views"
         mc:Ignorable="d"
-        Title="CreateAdminWindow" Height="250" Width="500">
-    <Grid Margin="15">
+        Title="Administrator-Konto erstellen"
+        Height="340" Width="420"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Grid Margin="20">
 
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -17,38 +21,50 @@
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="150"/>
+            <ColumnDefinition Width="130"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock Text="Name:"/>
-        <TextBox x:Name="txtName"
-             Grid.Column="1"/>
+        <TextBlock Grid.ColumnSpan="2"
+                   Text="Beim ersten Start wird ein Administrator-Konto benötigt."
+                   TextWrapping="Wrap"
+                   FontWeight="SemiBold"
+                   Margin="0,0,0,18"/>
 
         <TextBlock Grid.Row="1"
-               Text="Benutzername:"/>
-        <TextBox x:Name="txtUsername"
-             Grid.Row="1"
-             Grid.Column="1"/>
+                   Text="Name:"
+                   VerticalAlignment="Center"/>
+        <TextBox x:Name="txtName"
+                 Grid.Row="1" Grid.Column="1"
+                 Height="28" Margin="0,5"/>
 
         <TextBlock Grid.Row="2"
-               Text="Passwort:"/>
-        <PasswordBox x:Name="txtPassword"
-                 Grid.Row="2"
-                 Grid.Column="1"/>
+                   Text="Benutzername:"
+                   VerticalAlignment="Center"/>
+        <TextBox x:Name="txtUsername"
+                 Grid.Row="2" Grid.Column="1"
+                 Height="28" Margin="0,5"/>
 
         <TextBlock Grid.Row="3"
-               Text="Wiederholen:"/>
-        <PasswordBox x:Name="txtPassword2"
-                 Grid.Row="3"
-                 Grid.Column="1"/>
+                   Text="Passwort:"
+                   VerticalAlignment="Center"/>
+        <PasswordBox x:Name="txtPassword"
+                     Grid.Row="3" Grid.Column="1"
+                     Height="28" Margin="0,5"/>
 
-        <Button Grid.Row="4"
-            Grid.ColumnSpan="2"
-            Margin="0,20,0,0"
-            Height="35"
-            Content="Administrator anlegen"
-            Click="Create_Click"/>
+        <TextBlock Grid.Row="4"
+                   Text="Wiederholen:"
+                   VerticalAlignment="Center"/>
+        <PasswordBox x:Name="txtPassword2"
+                     Grid.Row="4" Grid.Column="1"
+                     Height="28" Margin="0,5"/>
+
+        <Button Grid.Row="5"
+                Grid.ColumnSpan="2"
+                Height="35"
+                Margin="0,20,0,0"
+                Content="Administrator anlegen"
+                Click="Create_Click"/>
 
     </Grid>
 </Window>
