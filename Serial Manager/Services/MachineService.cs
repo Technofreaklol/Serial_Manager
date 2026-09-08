@@ -30,20 +30,43 @@ public class MachineService
                  .FirstOrDefault(m => m.Id == id);
     }
 
-    public void SaveMachine(string name)
+    public void SaveMachine(int? id, string name)
     {
         using var db = DbContextFactory.Create();
 
-        var machine = db.Machines
-                        .FirstOrDefault(m => m.Name == name);
-
-        if (machine == null)
+        if (id.HasValue)
         {
-            db.Machines.Add(new Machine
-            {
-                Name = name
-            });
+            var machine = db.Machines.Find(id.Value)
+                ?? throw new Exception("Maschine wurde nicht gefunden.");
 
+            if (db.Machines.Any(m => m.Id != id.Value && m.Name == name))
+                throw new Exception("Dieser Maschinenname wird bereits verwendet.");
+
+            var oldName = machine.Name;
+            machine.Name = name;
+
+            db.SaveChanges();
+
+            // Historie ist nur über den Maschinennamen verknüpft
+            // (keine echte Fremdschlüssel-Beziehung) – bei Umbenennung mitziehen.
+            if (oldName != name)
+            {
+                var relatedHistory = db.SerialHistories
+                    .Where(h => h.Machine == oldName)
+                    .ToList();
+
+                foreach (var entry in relatedHistory)
+                    entry.Machine = name;
+
+                db.SaveChanges();
+            }
+        }
+        else
+        {
+            if (db.Machines.Any(m => m.Name == name))
+                throw new Exception("Dieser Maschinenname existiert bereits.");
+
+            db.Machines.Add(new Machine { Name = name });
             db.SaveChanges();
         }
     }

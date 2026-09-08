@@ -24,29 +24,10 @@ public partial class ArticleWindow : Window
         dgArticles.ItemsSource = _service.GetAllArticles();
     }
 
-    private void ToggleActive_Click(object sender, RoutedEventArgs e)
-    {
-        if (!CurrentSession.IsAdmin)
-        {
-            MessageBox.Show("Diese Funktion ist nur für Administratoren verfügbar.");
-            return;
-        }
-
-        if (_selectedArticle == null)
-        {
-            MessageBox.Show("Bitte zuerst einen Artikel auswählen.");
-            return;
-        }
-
-        _service.SetActive(_selectedArticle.Id, !_selectedArticle.IsActive);
-
-        LoadArticles();
-        New_Click(sender, e);
-    }
-
-    private void New_Click(object sender, RoutedEventArgs e)
+    private void ClearForm()
     {
         _selectedArticle = null;
+        dgArticles.SelectedItem = null;
 
         txtArticleNumber.Clear();
         txtDescription.Clear();
@@ -62,13 +43,32 @@ public partial class ArticleWindow : Window
             return;
         }
 
-        _service.SaveArticle(
-            txtArticleNumber.Text.Trim(),
-            txtDescription.Text.Trim());
+        if (_selectedArticle != null)
+        {
+            var confirm = MessageBox.Show(
+                $"Artikel '{_selectedArticle.ArticleNumber}' wirklich ändern?",
+                "Änderung speichern",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
 
-        LoadArticles();
+            if (confirm != MessageBoxResult.Yes)
+                return;
+        }
 
-        New_Click(sender, e);
+        try
+        {
+            _service.SaveArticle(
+                _selectedArticle?.Id,
+                txtArticleNumber.Text.Trim(),
+                txtDescription.Text.Trim());
+
+            LoadArticles();
+            ClearForm();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)
@@ -86,10 +86,11 @@ public partial class ArticleWindow : Window
         }
 
         var result = MessageBox.Show(
-            $"Artikel '{_selectedArticle.ArticleNumber}' wirklich löschen?",
+            $"Artikel '{_selectedArticle.ArticleNumber}' wirklich löschen?\n\n" +
+            "Alle zugehörigen Seriennummern werden dabei ebenfalls unwiderruflich gelöscht.",
             "Löschen",
             MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+            MessageBoxImage.Warning);
 
         if (result != MessageBoxResult.Yes)
             return;
@@ -97,8 +98,27 @@ public partial class ArticleWindow : Window
         _service.DeleteArticle(_selectedArticle.Id);
 
         LoadArticles();
+        ClearForm();
+    }
 
-        New_Click(sender, e);
+    private void ToggleActive_Click(object sender, RoutedEventArgs e)
+    {
+        if (!CurrentSession.IsAdmin)
+        {
+            MessageBox.Show("Diese Funktion ist nur für Administratoren verfügbar.");
+            return;
+        }
+
+        if (_selectedArticle == null)
+        {
+            MessageBox.Show("Bitte zuerst einen Artikel auswählen.");
+            return;
+        }
+
+        _service.SetActive(_selectedArticle.Id, !_selectedArticle.IsActive);
+
+        LoadArticles();
+        ClearForm();
     }
 
     private void dgArticles_SelectionChanged(object sender, SelectionChangedEventArgs e)

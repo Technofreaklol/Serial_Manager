@@ -43,29 +43,52 @@ public class ArticleService
                  .FirstOrDefault(a => a.Id == id);
     }
 
-    public void SaveArticle(string articleNumber, string description)
+    public void SaveArticle(int? id, string articleNumber, string description)
     {
         using var db = DbContextFactory.Create();
 
-        var article = db.Articles
-                        .FirstOrDefault(a => a.ArticleNumber == articleNumber);
-
-        if (article == null)
+        if (id.HasValue)
         {
-            article = new Article
-            {
-                ArticleNumber = articleNumber,
-                Description = description
-            };
+            var article = db.Articles.Find(id.Value)
+                ?? throw new Exception("Artikel wurde nicht gefunden.");
 
-            db.Articles.Add(article);
+            if (db.Articles.Any(a => a.Id != id.Value && a.ArticleNumber == articleNumber))
+                throw new Exception("Diese Artikelnummer wird bereits von einem anderen Artikel verwendet.");
+
+            var oldArticleNumber = article.ArticleNumber;
+
+            article.ArticleNumber = articleNumber;
+            article.Description = description;
+
+            db.SaveChanges();
+
+            // Historie ist nur über die Artikelnummer verknüpft (keine
+            // echte Fremdschlüssel-Beziehung) – bei Umbenennung mitziehen.
+            if (oldArticleNumber != articleNumber)
+            {
+                var relatedHistory = db.SerialHistories
+                    .Where(h => h.ArticleNumber == oldArticleNumber)
+                    .ToList();
+
+                foreach (var entry in relatedHistory)
+                    entry.ArticleNumber = articleNumber;
+
+                db.SaveChanges();
+            }
         }
         else
         {
-            article.Description = description;
-        }
+            if (db.Articles.Any(a => a.ArticleNumber == articleNumber))
+                throw new Exception("Diese Artikelnummer existiert bereits.");
 
-        db.SaveChanges();
+            db.Articles.Add(new Article
+            {
+                ArticleNumber = articleNumber,
+                Description = description
+            });
+
+            db.SaveChanges();
+        }
     }
 
     public void DeleteArticle(int id)

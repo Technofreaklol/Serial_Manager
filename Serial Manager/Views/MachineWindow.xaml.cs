@@ -25,9 +25,11 @@ public partial class MachineWindow : Window
         dgMachines.ItemsSource = _service.GetMachines();
     }
 
-    private void New_Click(object sender, RoutedEventArgs e)
+    private void ClearForm()
     {
         _selectedMachine = null;
+        dgMachines.SelectedItem = null;
+
         txtMachine.Clear();
         txtMachine.Focus();
     }
@@ -40,10 +42,29 @@ public partial class MachineWindow : Window
             return;
         }
 
-        _service.SaveMachine(txtMachine.Text.Trim());
+        if (_selectedMachine != null)
+        {
+            var confirm = MessageBox.Show(
+                $"Maschine '{_selectedMachine.Name}' wirklich ändern?",
+                "Änderung speichern",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
 
-        LoadMachines();
-        New_Click(sender, e);
+            if (confirm != MessageBoxResult.Yes)
+                return;
+        }
+
+        try
+        {
+            _service.SaveMachine(_selectedMachine?.Id, txtMachine.Text.Trim());
+
+            LoadMachines();
+            ClearForm();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void Delete_Click(object sender, RoutedEventArgs e)
@@ -66,7 +87,7 @@ public partial class MachineWindow : Window
         _service.DeleteMachine(_selectedMachine.Id);
 
         LoadMachines();
-        New_Click(sender, e);
+        ClearForm();
     }
 
     private void dgMachines_SelectionChanged(object sender, SelectionChangedEventArgs e)

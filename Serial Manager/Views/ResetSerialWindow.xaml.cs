@@ -8,8 +8,9 @@ namespace SerialManager.Views;
 public partial class ResetSerialWindow : Window
 {
     private readonly ArticleService _articleService = new();
+    private readonly AuditLogService _auditLog = new();
 
-private readonly WindowTitleService _titleService = new();
+    private readonly WindowTitleService _titleService = new();
 
     public ResetSerialWindow()
     {
@@ -57,7 +58,18 @@ private readonly WindowTitleService _titleService = new();
             return;
         }
 
+        int oldSerial = article.CurrentSerialNumber;
+        string reason = txtReason.Text.Trim();
+
         _articleService.SetCurrentSerial(article.Id, newSerial);
+
+        var details =
+            $"Artikelnummer: {article.ArticleNumber}, {oldSerial:D4} → {newSerial:D4}";
+
+        if (!string.IsNullOrWhiteSpace(reason))
+            details += $", Grund: {reason}";
+
+        _auditLog.Log("Seriennummer manuell angepasst", details);
 
         DialogResult = true;
         Close();
