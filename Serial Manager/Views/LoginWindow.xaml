@@ -1,0 +1,32 @@
+<Window x:Class="SerialManager.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Anmeldung" Height="230" Width="380"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="110"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Text="Benutzername:" VerticalAlignment="Center"/>
+        <TextBox x:Name="txtUsername" Grid.Column="1" Margin="0,4"/>
+
+        <TextBlock Grid.Row="1" Text="Passwort:" VerticalAlignment="Center"/>
+        <PasswordBox x:Name="txtPassword" Grid.Row="1" Grid.Column="1"
+                     Margin="0,4" KeyDown="txtPassword_KeyDown" Height="30"/>
+
+        <TextBlock x:Name="lblError" Grid.Row="2" Grid.ColumnSpan="2"
+                   Foreground="Red" TextWrapping="Wrap" Margin="0,6"/>
+
+        <Button Grid.Row="3" Grid.ColumnSpan="2" Height="35" Margin="0,10,0,0"
+                Content="Anmelden" Click="Login_Click"/>
+    </Grid>
+</Window>

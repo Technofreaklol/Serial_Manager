@@ -1,0 +1,375 @@
+using SerialManager.Services;
+using SerialManager.Views;
+using System.Windows;
+using System.Windows.Threading;
+
+namespace SerialManager;
+
+public partial class App : Application
+{
+
+    private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    {
+        DiagnosticLogService.Write("Nicht behandelter UI-Fehler.", e.Exception);
+
+        MessageBox.Show(
+            "Ein unerwarteter Fehler ist aufgetreten. Die Anwendung wurde nicht automatisch beendet.\n\n" +
+            e.Exception.Message + "\n\n" +
+            "Details wurden in der Diagnose-Logdatei gespeichert.",
+            "Unerwarteter Fehler",
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
+
+        e.Handled = true;
+    }
+
+    private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception ex)
+            DiagnosticLogService.Write("Nicht behandelter Anwendungsfehler.", ex);
+        else
+            DiagnosticLogService.Write("Nicht behandelter Anwendungsfehler: " + e.ExceptionObject);
+    }
+
+    protected override async void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        DispatcherUnhandledException += App_DispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
+        // ---------------------------------------------------------
+        // Splash Screen anzeigen
+        // ---------------------------------------------------------
+        var splash = new SplashWindow();
+        splash.Show();
+
+        // Sicherstellen, dass der Splash zuerst gerendert wird
+        await Dispatcher.InvokeAsync(
+            () => { },
+            DispatcherPriority.Render);
+
+        while (true)
+        {
+            var initializer = new DatabaseInitializer();
+
+            // -----------------------------------------------------
+            // Datenbankverbindung prüfen
+            // -----------------------------------------------------
+            splash.SetStatus("Datenbankverbindung wird geprüft …");
+
+            await Dispatcher.InvokeAsync(
+                () => { },
+                DispatcherPriority.Render);
+
+            var databaseCheck = await Task.Run(() =>
+            {
+                string errorMessage;
+
+                bool canStart =
+                    initializer.CanStartApplication(out errorMessage);
+
+                return new DatabaseCheckResult(
+                    canStart,
+                    errorMessage);
+            });
+
+            if (databaseCheck.CanStart)
+                break;
+
+            // -----------------------------------------------------
+            // Datenbankfehler
+            // -----------------------------------------------------
+            splash.Hide();
+
+            var result = MessageBox.Show(
+                $"Die MySQL-Datenbank konnte nicht erreicht werden.\n\n" +
+                $"{databaseCheck.Message}\n\n" +
+                "Ja = Datenbankeinstellungen öffnen\n" +
+                "Nein = Mit SQLite starten\n" +
+                "Abbrechen = Anwendung beenden",
+                "Datenbankfehler",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+
+            // -----------------------------------------------------
+            // Datenbankeinstellungen öffnen
+            // -----------------------------------------------------
+            if (result == MessageBoxResult.Yes)
+            {
+                var window = new DatabaseSetupWindow();
+
+                if (window.ShowDialog() != true)
+                {
+                    splash.Close();
+                    Shutdown();
+                    return;
+                }
+
+                splash.Show();
+
+                await Dispatcher.InvokeAsync(
+                    () => { },
+                    DispatcherPriority.Render);
+
+                continue;
+            }
+
+            // -----------------------------------------------------
+            // Mit SQLite starten
+            // -----------------------------------------------------
+            if (result == MessageBoxResult.No)
+            {
+                splash.Show();
+
+                splash.SetStatus("SQLite wird eingerichtet …");
+
+                await Dispatcher.InvokeAsync(
+                    () => { },
+                    DispatcherPriority.Render);
+
+                var configService =
+                    new DatabaseConfigurationService();
+
+                var config = configService.Load();
+
+                config.Provider = "SQLite";
+
+                configService.Save(config);
+
+                var databaseInitialization = await Task.Run(() =>
+                {
+                    string initMessage;
+
+                    bool initialized =
+                        initializer.InitializeDatabase(
+                            out initMessage);
+
+                    return new DatabaseInitializationResult(
+                        initialized,
+                        initMessage);
+                });
+
+                if (!databaseInitialization.Success)
+                {
+                    splash.Hide();
+
+                    MessageBox.Show(
+                        databaseInitialization.Message,
+                        "Fehler beim Initialisieren der Datenbank",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+
+                    splash.Close();
+                    Shutdown();
+                    return;
+                }
+
+                break;
+            }
+
+            // -----------------------------------------------------
+            // Abbrechen
+            // -----------------------------------------------------
+            splash.Close();
+            Shutdown();
+            return;
+        }
+
+        // ---------------------------------------------------------
+        // WICHTIG:
+        // Bei SQLite sicherstellen, dass die Datenbanktabellen
+        // vorhanden sind.
+        //
+        // CanStartApplication() gibt bei SQLite sofort "true"
+        // zurück und würde InitializeDatabase() sonst überspringen.
+        // ---------------------------------------------------------
+        var currentConfig =
+            new DatabaseConfigurationService().Load();
+
+        if (currentConfig.Provider == "SQLite")
+        {
+            splash.SetStatus("SQLite-Datenbank wird vorbereitet …");
+
+            await Dispatcher.InvokeAsync(
+                () => { },
+                DispatcherPriority.Render);
+
+            var initializer = new DatabaseInitializer();
+
+            var databaseInitialization = await Task.Run(() =>
+            {
+                string initMessage;
+
+                bool initialized =
+                    initializer.InitializeDatabase(
+                        out initMessage);
+
+                return new DatabaseInitializationResult(
+                    initialized,
+                    initMessage);
+            });
+
+            if (!databaseInitialization.Success)
+            {
+                splash.Hide();
+
+                MessageBox.Show(
+                    databaseInitialization.Message,
+                    "Fehler beim Initialisieren der Datenbank",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+
+                splash.Close();
+                Shutdown();
+                return;
+            }
+        }
+
+        // ---------------------------------------------------------
+        // Einstellungen laden
+        // ---------------------------------------------------------
+        splash.SetStatus("Einstellungen werden geladen …");
+
+        await Dispatcher.InvokeAsync(
+            () => { },
+            DispatcherPriority.Render);
+
+        InitializeSettings();
+
+        // ---------------------------------------------------------
+        // Benutzeranmeldung
+        // ---------------------------------------------------------
+        splash.SetStatus("Anmeldung wird geprüft …");
+
+        await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+        var userService = new UserService();
+
+        if (!userService.HasUsers())
+        {
+            splash.Hide();
+
+            var createAdmin = new CreateAdminWindow();
+
+            if (createAdmin.ShowDialog() != true)
+            {
+                splash.Close();
+                Shutdown();
+                return;
+            }
+
+            splash.Show();
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+        }
+
+        splash.Hide();
+
+        var login = new LoginWindow();
+
+        if (login.ShowDialog() != true)
+        {
+            splash.Close();
+            Shutdown();
+            return;
+        }
+
+        CurrentSession.CurrentUser = login.AuthenticatedUser;
+
+        splash.Show();
+        await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+        // ---------------------------------------------------------
+        // Hauptfenster laden
+        // ---------------------------------------------------------
+        splash.SetStatus("Oberfläche wird geladen …");
+
+        await Dispatcher.InvokeAsync(
+            () => { },
+            DispatcherPriority.Render);
+
+        MainWindow = new MainWindow();
+        MainWindow.Show();
+
+        // ---------------------------------------------------------
+        // Splash ausblenden
+        // ---------------------------------------------------------
+        await splash.CloseAnimatedAsync();
+    }
+
+
+    private void InitializeSettings()
+    {
+        try
+        {
+            var settingsService = new SettingsService();
+
+            // Firmenname
+            if (string.IsNullOrWhiteSpace(
+                settingsService.GetValue("CompanyName")))
+            {
+                settingsService.SetValue(
+                    "CompanyName",
+                    "Stewe");
+            }
+
+            // Anzahl Backups
+            if (string.IsNullOrWhiteSpace(
+                settingsService.GetValue("BackupCount")))
+            {
+                settingsService.SetValue(
+                    "BackupCount",
+                    "20");
+            }
+
+            // Automatisches Backup
+            if (string.IsNullOrWhiteSpace(
+                settingsService.GetValue("AutoBackup")))
+            {
+                settingsService.SetValue(
+                    "AutoBackup",
+                    "false");
+            }
+
+            // Automatisches Backup
+            if (settingsService.GetBool("AutoBackup"))
+            {
+                try
+                {
+                    new BackupService().CreateBackup();
+                }
+                catch
+                {
+                    // Backupfehler ignorieren
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                "Die Anwendung konnte die Einstellungen nicht laden.\n\n" +
+                ex.Message,
+                "Fehler",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+
+            Shutdown();
+        }
+    }
+
+
+    // -------------------------------------------------------------
+    // Ergebnis der Datenbankprüfung
+    // -------------------------------------------------------------
+    private sealed record DatabaseCheckResult(
+        bool CanStart,
+        string Message);
+
+
+    // -------------------------------------------------------------
+    // Ergebnis der Datenbankinitialisierung
+    // -------------------------------------------------------------
+    private sealed record DatabaseInitializationResult(
+        bool Success,
+        string Message);
+}

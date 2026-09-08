@@ -1,0 +1,90 @@
+<Window x:Class="SerialManager.Views.SplashWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="520"
+        Height="330"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        Topmost="True">
+
+    <Window.Resources>
+        <Storyboard x:Key="FadeInStoryboard">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="0"
+                             To="1"
+                             Duration="0:0:0.25" />
+        </Storyboard>
+
+        <Storyboard x:Key="FadeOutStoryboard">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                             From="1"
+                             To="0"
+                             Duration="0:0:0.20" />
+        </Storyboard>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <Border Background="White"
+                CornerRadius="18">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="28"
+                                  ShadowDepth="8"
+                                  Opacity="0.20" />
+            </Border.Effect>
+
+            <Grid Margin="34">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Image Grid.Row="0"
+                       Width="82"
+                       Height="82"
+                       HorizontalAlignment="Center"
+                       Source="/Assets/Logo.png"
+                       Stretch="Uniform" />
+
+                <TextBlock Grid.Row="1"
+                           Margin="0,18,0,0"
+                           HorizontalAlignment="Center"
+                           FontFamily="Segoe UI"
+                           FontSize="27"
+                           FontWeight="SemiBold"
+                           Foreground="#202124"
+                           Text="SerialManager" />
+
+                <StackPanel Grid.Row="3">
+                    <TextBlock x:Name="txtStatus"
+                               HorizontalAlignment="Center"
+                               FontFamily="Segoe UI"
+                               FontSize="13"
+                               Foreground="#6B7280"
+                               Text="Anwendung wird gestartet …" />
+
+                    <ProgressBar Margin="0,13,0,0"
+                                 Height="4"
+                                 IsIndeterminate="True"
+                                 BorderThickness="0"
+                                 Background="#E9EEF5"
+                                 Foreground="#1976D2" />
+                </StackPanel>
+
+                <TextBlock x:Name="txtVersion"
+                           Grid.Row="4"
+                           Margin="0,22,0,0"
+                           HorizontalAlignment="Center"
+                           FontFamily="Segoe UI"
+                           FontSize="11"
+                           Foreground="#9CA3AF" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

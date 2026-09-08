@@ -1,0 +1,54 @@
+﻿<Window x:Class="SerialManager.Views.CreateAdminWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SerialManager.Views"
+        mc:Ignorable="d"
+        Title="CreateAdminWindow" Height="250" Width="500">
+    <Grid Margin="15">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="150"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Text="Name:"/>
+        <TextBox x:Name="txtName"
+             Grid.Column="1"/>
+
+        <TextBlock Grid.Row="1"
+               Text="Benutzername:"/>
+        <TextBox x:Name="txtUsername"
+             Grid.Row="1"
+             Grid.Column="1"/>
+
+        <TextBlock Grid.Row="2"
+               Text="Passwort:"/>
+        <PasswordBox x:Name="txtPassword"
+                 Grid.Row="2"
+                 Grid.Column="1"/>
+
+        <TextBlock Grid.Row="3"
+               Text="Wiederholen:"/>
+        <PasswordBox x:Name="txtPassword2"
+                 Grid.Row="3"
+                 Grid.Column="1"/>
+
+        <Button Grid.Row="4"
+            Grid.ColumnSpan="2"
+            Margin="0,20,0,0"
+            Height="35"
+            Content="Administrator anlegen"
+            Click="Create_Click"/>
+
+    </Grid>
+</Window>

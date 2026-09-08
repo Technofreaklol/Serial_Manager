@@ -1,0 +1,79 @@
+﻿<Window x:Class="SerialManager.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Einstellungen"
+        Height="300"
+        Width="500"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid Margin="15">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid>
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Firmenname:"
+                       VerticalAlignment="Center"/>
+
+            <TextBox x:Name="txtCompany"
+                     Grid.Column="1"/>
+
+            <TextBlock Grid.Row="1"
+                       Margin="0,15,0,0"
+                       Text="Backups behalten:"
+                       VerticalAlignment="Center"/>
+
+            <TextBox x:Name="txtBackupCount"
+                     Grid.Row="1"
+                     Grid.Column="1"
+                     Margin="0,15,0,0"/>
+
+            <CheckBox x:Name="chkAutoBackup"
+                      Grid.Row="2"
+                      Grid.ColumnSpan="2"
+                      Margin="0,20,0,0"
+                      Content="Beim Programmstart automatisch Backup erstellen"/>
+            
+            <CheckBox x:Name="chkShowLabelPreview"
+          Grid.Row="3"
+          Grid.ColumnSpan="2"
+          Margin="0,5,0,0"
+          Content="Etikettenvorschau nach dem Erzeugen anzeigen"/>
+
+        </Grid>
+
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,20,0,0">
+
+            <Button Width="120"
+                    Content="Speichern"
+                    Click="Save_Click"/>
+
+            <Button Width="120"
+                    Margin="10,0,0,0"
+                    Content="Abbrechen"
+                    Click="Cancel_Click"/>
+
+        </StackPanel>
+
+    </Grid>
+
+</Window>

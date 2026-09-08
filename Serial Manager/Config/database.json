@@ -1,0 +1,14 @@
+{
+  "Provider": "MySQL",
+  "SQLite": {
+    "File": "serialmanager.db"
+  },
+  "MySQL": {
+    "Server": "localhost",
+    "Port": 3306,
+    "Database": "serialmanager",
+    "Username": "",
+    "Password": "",
+    "ServerVersion": ""
+  }
+}
