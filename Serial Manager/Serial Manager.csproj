@@ -20,7 +20,19 @@
     <ApplicationIcon>Assets\Logo.ico</ApplicationIcon>
     <Copyright>Nikolai Hieber</Copyright>
     <PackageProjectUrl>https://www.hieber.me</PackageProjectUrl>
+
+    <!-- Velopack benötigt einen eigenen Main()-Einstiegspunkt (siehe App.xaml.cs),
+         daher übernimmt App.xaml nicht mehr automatisch die Rolle als
+         ApplicationDefinition/StartupObject. -->
+    <StartupObject>SerialManager.App</StartupObject>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Von Velopack benötigt: eigener Main()-Einstiegspunkt statt des
+         automatisch generierten WPF-Einstiegspunkts. -->
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Remove="Assets\Logo.ico" />
@@ -56,6 +68,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.9" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
     <PackageReference Include="QRCoder" Version="1.8.0" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
   </ItemGroup>
 
   <ItemGroup>

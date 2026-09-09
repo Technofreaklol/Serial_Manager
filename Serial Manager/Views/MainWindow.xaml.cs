@@ -1,6 +1,8 @@
 using SerialManager.Models;
 using SerialManager.Services;
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using SerialManager.Views;
@@ -9,6 +11,7 @@ using System.Windows.Input;
 using Microsoft.Win32;
 using System.IO;
 using System.Text;
+using Velopack;
 
 namespace SerialManager;
 
@@ -21,6 +24,7 @@ public partial class MainWindow : Window
     private readonly WindowTitleService _titleService = new();
     private readonly LabelService _labelService = new();
     private readonly PrinterService _printerService = new();
+    private readonly UpdateService _updateService = new();
 
     private List<Article> _allArticles = new();
     private List<Article> _customerArticles = new();
@@ -37,6 +41,79 @@ public partial class MainWindow : Window
         ApplyRolePermissions();
         lblCurrentUser.Text =
            $"Angemeldet als: {CurrentSession.CurrentUser?.FullName} ({CurrentSession.CurrentUser?.Role})";
+
+        // Stille Update-Prüfung im Hintergrund - fällt still in sich
+        // zusammen, wenn kein Internet vorhanden ist oder die
+        // Anwendung nicht über den Installer läuft.
+        _ = CheckForUpdatesAsync(showFeedbackWhenUpToDate: false);
+    }
+
+    // -------------------------------------------------------------
+    // Update-Prüfung (Velopack)
+    // -------------------------------------------------------------
+    private async void MenuCheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        await CheckForUpdatesAsync(showFeedbackWhenUpToDate: true);
+    }
+
+    private async Task CheckForUpdatesAsync(bool showFeedbackWhenUpToDate)
+    {
+        if (!_updateService.IsInstalled)
+        {
+            if (showFeedbackWhenUpToDate)
+            {
+                MessageBox.Show(
+                    "Die Update-Suche steht nur in der installierten Version " +
+                    "zur Verfügung (nicht im Entwicklungsbetrieb).",
+                    "Nach Updates suchen",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+
+            return;
+        }
+
+        UpdateInfo? update = await _updateService.CheckForUpdatesAsync();
+
+        if (update == null)
+        {
+            if (showFeedbackWhenUpToDate)
+            {
+                MessageBox.Show(
+                    "Sie verwenden bereits die aktuelle Version.",
+                    "Nach Updates suchen",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"Eine neue Version ({update.TargetFullRelease.Version}) ist verfügbar.\n\n" +
+            "Soll das Update jetzt heruntergeladen werden? " +
+            "Die Anwendung wird danach automatisch neu gestartet.",
+            "Update verfügbar",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            await _updateService.DownloadUpdateAsync(update);
+            _updateService.ApplyUpdateAndRestart(update);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                "Das Update konnte nicht heruntergeladen/installiert werden:\n\n" +
+                ex.Message,
+                "Fehler beim Update",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private void ApplyRolePermissions()
