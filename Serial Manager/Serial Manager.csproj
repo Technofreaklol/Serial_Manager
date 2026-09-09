@@ -4,15 +4,10 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <RootNamespace>SerialManager</RootNamespace>
-    <!-- Wichtig für Velopack: Der Dateiname der EXE darf kein Leerzeichen
-         enthalten, da "vpk pack --mainExe" Leerzeichen im Dateinamen nicht
-         korrekt verarbeitet (https://github.com/velopack/velopack/issues/96).
-         Ohne diese Zeile würde die EXE "Serial Manager.exe" heißen. -->
-    <AssemblyName>SerialManager</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-	<Version>1.0.6</Version>
+	<Version>1.0.7</Version>
 
     <!-- Self-contained Single-File EXE -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
