@@ -168,15 +168,24 @@ public partial class MainWindow : Window
             return;
 
         // Nach der Auswahl soll im Textfeld nicht nur die Artikelnummer
-        // stehen (das würde sonst "TextSearch.TextPath=ArticleNumber"
-        // automatisch so setzen), sondern wie in der Dropdown-Liste auch
-        // die Beschreibung. _suppressTextChanged verhindert dabei, dass
-        // dieses Setzen selbst wieder die Live-Filterung auslöst.
-        _suppressTextChanged = true;
-        cmbArticles.Text = $"{article.ArticleNumber} - {article.Description}";
-        if (cmbArticles.Template?.FindName("PART_EditableTextBox", cmbArticles) is TextBox editableTextBox)
-            editableTextBox.CaretIndex = editableTextBox.Text.Length;
-        _suppressTextChanged = false;
+        // stehen, sondern wie in der Dropdown-Liste auch die Beschreibung.
+        // Wichtig: WPF setzt den Text der editierbaren ComboBox wegen
+        // "TextSearch.TextPath=ArticleNumber" im Rahmen der Selektions-
+        // verarbeitung SELBST auf die Artikelnummer - das kann direkt in
+        // diesem Event-Handler gesetzten Text wieder überschreiben. Daher
+        // wird der gewünschte Text erst NACH dieser internen Verarbeitung
+        // gesetzt (Dispatcher, niedrigere Priorität).
+        var displayText = $"{article.ArticleNumber} - {article.Description}";
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            new Action(() =>
+            {
+                _suppressTextChanged = true;
+                cmbArticles.Text = displayText;
+                if (cmbArticles.Template?.FindName("PART_EditableTextBox", cmbArticles) is TextBox editableTextBox)
+                    editableTextBox.CaretIndex = editableTextBox.Text.Length;
+                _suppressTextChanged = false;
+            }));
 
         lblDescription.Text = article.Description;
 
