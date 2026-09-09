@@ -758,7 +758,19 @@ public partial class MainWindow : Window
         if (_suppressTextChanged)
             return;
 
-        var filter = cmbArticles.Text.Trim();
+        // Der tatsächlich eingegebene Text kommt direkt aus der inneren
+        // TextBox der editierbaren ComboBox (e.OriginalSource). Vorher
+        // wurde "cmbArticles.Text" gelesen - das kann in genau diesem
+        // Event-Durchlauf noch nicht auf dem neuesten Stand sein, sodass
+        // beim allerersten eingegebenen Zeichen unten wieder ein alter/
+        // leerer Text zurückgeschrieben und das gerade Getippte damit
+        // überschrieben wurde.
+        if (e.OriginalSource is not TextBox editableTextBox)
+            return;
+
+        var typedText = editableTextBox.Text;
+        var caretIndex = editableTextBox.CaretIndex;
+        var filter = typedText.Trim();
 
         var filtered = string.IsNullOrEmpty(filter)
             ? _customerArticles
@@ -769,12 +781,18 @@ public partial class MainWindow : Window
                 .ToList();
 
         _suppressTextChanged = true;
-        cmbArticles.ItemsSource = filtered;
-        cmbArticles.Text = filter;
 
-        cmbArticles.ApplyTemplate();
-        if (cmbArticles.Template.FindName("PART_EditableTextBox", cmbArticles) is TextBox editableTextBox)
-            editableTextBox.CaretIndex = filter.Length;
+        cmbArticles.ItemsSource = filtered;
+
+        // Das Setzen von ItemsSource kann SelectedItem auf null springen
+        // lassen (falls das bisher ausgewählte Element im gefilterten
+        // Ergebnis fehlt), wodurch die editierbare ComboBox ihren Text
+        // zurücksetzen kann - deshalb hier explizit mit dem tatsächlich
+        // getippten Text (nicht dem getrimmten Filter) wiederherstellen,
+        // direkt auf derselben TextBox-Instanz statt über einen erneuten
+        // FindName-Lookup.
+        editableTextBox.Text = typedText;
+        editableTextBox.CaretIndex = caretIndex;
 
         bool isExactSelectedMatch =
             cmbArticles.SelectedItem is Article selected &&
