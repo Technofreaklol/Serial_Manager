@@ -11,6 +11,7 @@ using System.Windows.Input;
 using Microsoft.Win32;
 using System.IO;
 using System.Text;
+using System.Windows.Threading;
 using Velopack;
 
 namespace SerialManager;
@@ -758,14 +759,26 @@ public partial class MainWindow : Window
         if (_suppressTextChanged)
             return;
 
-        // Der tatsächlich eingegebene Text kommt direkt aus der inneren
-        // TextBox der editierbaren ComboBox (e.OriginalSource). Vorher
-        // wurde "cmbArticles.Text" gelesen - das kann in genau diesem
-        // Event-Durchlauf noch nicht auf dem neuesten Stand sein, sodass
-        // beim allerersten eingegebenen Zeichen unten wieder ein alter/
-        // leerer Text zurückgeschrieben und das gerade Getippte damit
-        // überschrieben wurde.
         if (e.OriginalSource is not TextBox editableTextBox)
+            return;
+
+        // WICHTIG: ItemsSource/Dropdown NICHT synchron im selben Moment
+        // wie die Texteingabe selbst ändern. Das kollidiert mit WPFs
+        // eigener interner Verarbeitung des gerade getippten Zeichens
+        // (Caret-Update, Rendering) und führte dazu, dass insbesondere
+        // das erste eingegebene Zeichen wieder verschwand/überschrieben
+        // wurde. Stattdessen wird die eigentliche Filterung erst NACH
+        // Abschluss der aktuellen Texteingabe ausgeführt (über den
+        // Dispatcher mit Input-Priorität), zu dem Zeitpunkt liest sie
+        // dann ganz normal den aktuellen (fertig verarbeiteten) Text.
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Input,
+            new Action(() => ApplyArticleFilter(editableTextBox)));
+    }
+
+    private void ApplyArticleFilter(TextBox editableTextBox)
+    {
+        if (_suppressTextChanged)
             return;
 
         var typedText = editableTextBox.Text;
