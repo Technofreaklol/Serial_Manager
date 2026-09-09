@@ -99,6 +99,8 @@ public class DatabaseInitializer
             {
                 db.Database.EnsureCreated();
                 EnsureArticleIsActiveColumn(db);
+                EnsureRowVersionColumn(db, "Articles");
+                EnsureRowVersionColumn(db, "Machines");
                 EnsureAuditLogTable(db);
                 RepairSerialHistoryIndex(db);
 
@@ -134,27 +136,10 @@ public class DatabaseInitializer
         if (!db.Database.IsSqlite())
             return;
 
-        using var command = db.Database.GetDbConnection().CreateCommand();
-        command.CommandText = "PRAGMA table_info('Articles');";
-
         db.Database.OpenConnection();
         try
         {
-            bool hasColumn = false;
-
-            using (var reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    if (reader.GetString(1) == "IsActive")
-                    {
-                        hasColumn = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!hasColumn)
+            if (!SqliteHasColumn(db, "Articles", "IsActive"))
             {
                 db.Database.ExecuteSqlRaw(
                     "ALTER TABLE Articles ADD COLUMN IsActive INTEGER NOT NULL DEFAULT 1;");
@@ -164,6 +149,49 @@ public class DatabaseInitializer
         {
             db.Database.CloseConnection();
         }
+    }
+
+    // Ältere SQLite-Datenbanken wurden vor Einführung des RowVersion-Feldes
+    // (Concurrency-Token, siehe SerialDbContext.OnModelCreating) angelegt und
+    // haben deshalb weder in "Articles" noch in "Machines" diese Spalte.
+    // Ohne sie meldet EF Core beim Lesen/Speichern "no such column: RowVersion"
+    // ("es fehlen Felder"). EnsureCreated() legt diese Spalte NICHT nachträglich
+    // an bestehenden Tabellen an – das übernimmt daher dieser Patch, analog zu
+    // EnsureArticleIsActiveColumn oben.
+    private static void EnsureRowVersionColumn(SerialDbContext db, string table)
+    {
+        if (!db.Database.IsSqlite())
+            return;
+
+        db.Database.OpenConnection();
+        try
+        {
+            if (!SqliteHasColumn(db, table, "RowVersion"))
+            {
+                db.Database.ExecuteSqlRaw(
+                    $"ALTER TABLE {table} ADD COLUMN RowVersion TEXT NOT NULL " +
+                    "DEFAULT '0001-01-01 00:00:00';");
+            }
+        }
+        finally
+        {
+            db.Database.CloseConnection();
+        }
+    }
+
+    private static bool SqliteHasColumn(SerialDbContext db, string table, string column)
+    {
+        using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = $"PRAGMA table_info('{table}');";
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (reader.GetString(1) == column)
+                return true;
+        }
+
+        return false;
     }
 
     private static void EnsureAuditLogTable(SerialDbContext db)
