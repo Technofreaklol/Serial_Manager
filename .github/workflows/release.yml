@@ -47,14 +47,20 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           -o publish
 
+      # Alles rund um vpk läuft bewusst in EINEM einzigen bash-Schritt
+      # (statt über mehrere Schritte verteilt): "dotnet tool install -g"
+      # aktualisiert nur die PERSISTIERTE PATH-Variable für zukünftige
+      # Shells, nicht die der aktuell laufenden. Jeder Workflow-Schritt
+      # startet aber eine neue Shell - über $GITHUB_PATH hinzugefügte
+      # Einträge sollten dort zwar automatisch verfügbar sein, das hat
+      # sich in der Praxis auf windows-latest aber nicht zuverlässig
+      # gezeigt. Deshalb zusätzlich als Absicherung: PATH innerhalb
+      # dieses einen Schritts explizit selbst erweitern.
       - name: vpk-CLI installieren
+        shell: bash
         run: |
           dotnet tool install -g vpk
-          echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
-
-      - name: Vorherige Releases laden (für Delta-Updates)
-        run: vpk download github --repoUrl https://github.com/${{ github.repository }}
-        continue-on-error: true
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
       # Optional: Code-Signing-Zertifikat. Erst aktiv, wenn die Secrets
       # WINDOWS_CERTIFICATE_BASE64 (Base64-codierte .pfx-Datei) und
@@ -70,11 +76,24 @@ jobs:
         run: |
           echo "${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}" | base64 --decode > cert.pfx
 
-      - name: Installer & Update-Pakete erstellen
+      - name: Installer, Update-Pakete erstellen und veröffentlichen
         shell: bash
         env:
           HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' }}
         run: |
+          # Absicherung, falls $GITHUB_PATH aus dem vorherigen Schritt aus
+          # irgendeinem Grund nicht greift:
+          export PATH="$PATH:$HOME/.dotnet/tools"
+
+          if ! command -v vpk >/dev/null 2>&1; then
+            echo "::error::vpk wurde nicht im PATH gefunden ($HOME/.dotnet/tools)."
+            exit 1
+          fi
+
+          # Vorherige Releases laden (für Delta-Updates). Beim allerersten
+          # Release gibt es noch nichts zu laden - kein Fehler.
+          vpk download github --repoUrl "https://github.com/${{ github.repository }}" || true
+
           SIGN_ARGS=()
           if [ "$HAS_CERT" = "true" ]; then
             SIGN_ARGS=(--signParams "/f cert.pfx /p \"${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}\" /tr http://timestamp.digicert.com /td sha256 /fd sha256")
@@ -90,11 +109,9 @@ jobs:
             --icon "Serial Manager/Assets/Logo.ico" \
             "${SIGN_ARGS[@]}"
 
-      - name: Release auf GitHub veröffentlichen
-        run: >
-          vpk upload github
-          --repoUrl https://github.com/${{ github.repository }}
-          --token ${{ secrets.GITHUB_TOKEN }}
-          --publish
-          --releaseName "Serial Manager ${{ steps.version.outputs.version }}"
-          --tag v${{ steps.version.outputs.version }}
+          vpk upload github \
+            --repoUrl "https://github.com/${{ github.repository }}" \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --publish \
+            --releaseName "Serial Manager ${{ steps.version.outputs.version }}" \
+            --tag "v${{ steps.version.outputs.version }}"
