@@ -156,6 +156,19 @@ public class DatabaseDiagnosticService
 
     private static void CheckMigrations(SerialDbContext db, DatabaseStatus status)
     {
+        // SQLite nutzt bewusst keine EF-Migrationen (siehe DatabaseInitializer:
+        // EnsureCreated() + manuelle Spalten-Patches statt Migrate()). Die
+        // __EFMigrationsHistory-Tabelle wird dabei nie angelegt/befüllt, daher
+        // würde GetPendingMigrations() hier IMMER alle Migrationen als
+        // "ausstehend" melden – unabhängig davon, ob das Schema aktuell ist.
+        // Das wäre bei jeder SQLite-Datenbank irreführend, deshalb hier
+        // gar nicht erst prüfen.
+        if (db.Database.IsSqlite())
+        {
+            status.MigrationStatus = "Nicht zutreffend (SQLite nutzt automatische Schemaprüfung)";
+            return;
+        }
+
         try
         {
             var pending = db.Database.GetPendingMigrations().ToList();
