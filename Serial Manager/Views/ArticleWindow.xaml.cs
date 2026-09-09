@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using Microsoft.EntityFrameworkCore;
 using SerialManager.Models;
 using SerialManager.Services;
 
@@ -61,6 +62,19 @@ public partial class ArticleWindow : Window
                 _selectedArticle?.Id,
                 txtArticleNumber.Text.Trim(),
                 txtDescription.Text.Trim());
+
+            LoadArticles();
+            ClearForm();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            MessageBox.Show(
+                "Dieser Artikel wurde in der Zwischenzeit von einem anderen Benutzer geändert " +
+                "oder gelöscht.\n\nDie Liste wird jetzt aktualisiert – bitte die Änderung " +
+                "danach erneut vornehmen.",
+                "Gleichzeitige Bearbeitung",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
 
             LoadArticles();
             ClearForm();

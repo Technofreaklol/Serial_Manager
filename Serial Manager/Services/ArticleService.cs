@@ -60,7 +60,16 @@ public class ArticleService
             article.ArticleNumber = articleNumber;
             article.Description = description;
 
-            db.SaveChanges();
+            try
+            {
+                db.SaveChanges();
+            }
+            catch (DbUpdateException ex) when (DbExceptionHelper.IsUniqueConstraintViolation(ex))
+            {
+                throw new Exception(
+                    "Diese Artikelnummer wird inzwischen von einem anderen Artikel verwendet " +
+                    "(wurde gerade eben von einem anderen Benutzer vergeben).");
+            }
 
             // Historie ist nur über die Artikelnummer verknüpft (keine
             // echte Fremdschlüssel-Beziehung) – bei Umbenennung mitziehen.
@@ -87,7 +96,16 @@ public class ArticleService
                 Description = description
             });
 
-            db.SaveChanges();
+            try
+            {
+                db.SaveChanges();
+            }
+            catch (DbUpdateException ex) when (DbExceptionHelper.IsUniqueConstraintViolation(ex))
+            {
+                throw new Exception(
+                    "Diese Artikelnummer existiert bereits " +
+                    "(wurde gerade eben von einem anderen Benutzer angelegt).");
+            }
         }
     }
 

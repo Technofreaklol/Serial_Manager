@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using Microsoft.EntityFrameworkCore;
 using SerialManager.Models;
 using SerialManager.Services;
 
@@ -57,6 +58,19 @@ public partial class MachineWindow : Window
         try
         {
             _service.SaveMachine(_selectedMachine?.Id, txtMachine.Text.Trim());
+
+            LoadMachines();
+            ClearForm();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            MessageBox.Show(
+                "Diese Maschine wurde in der Zwischenzeit von einem anderen Benutzer geändert " +
+                "oder gelöscht.\n\nDie Liste wird jetzt aktualisiert – bitte die Änderung " +
+                "danach erneut vornehmen.",
+                "Gleichzeitige Bearbeitung",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
 
             LoadMachines();
             ClearForm();

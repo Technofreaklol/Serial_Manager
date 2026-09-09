@@ -35,7 +35,17 @@ public class UserService
             Created = DateTime.Now
         });
 
-        db.SaveChanges();
+        try
+        {
+            db.SaveChanges();
+        }
+        catch (Exception ex) when (ex is Microsoft.EntityFrameworkCore.DbUpdateException dbEx &&
+                                    DbExceptionHelper.IsUniqueConstraintViolation(dbEx))
+        {
+            throw new Exception(
+                "Dieser Benutzername existiert bereits " +
+                "(wurde gerade eben von einem anderen Administrator angelegt).");
+        }
     }
 
     public User? Authenticate(string username, string password)

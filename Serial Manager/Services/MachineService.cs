@@ -1,4 +1,5 @@
-﻿using SerialManager.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using SerialManager.Data;
 using SerialManager.Models;
 
 namespace SerialManager.Services;
@@ -45,10 +46,17 @@ public class MachineService
             var oldName = machine.Name;
             machine.Name = name;
 
-            db.SaveChanges();
+            try
+            {
+                db.SaveChanges();
+            }
+            catch (DbUpdateException ex) when (DbExceptionHelper.IsUniqueConstraintViolation(ex))
+            {
+                throw new Exception(
+                    "Dieser Maschinenname wird inzwischen von einer anderen Maschine verwendet " +
+                    "(wurde gerade eben von einem anderen Benutzer vergeben).");
+            }
 
-            // Historie ist nur über den Maschinennamen verknüpft
-            // (keine echte Fremdschlüssel-Beziehung) – bei Umbenennung mitziehen.
             if (oldName != name)
             {
                 var relatedHistory = db.SerialHistories
@@ -67,7 +75,17 @@ public class MachineService
                 throw new Exception("Dieser Maschinenname existiert bereits.");
 
             db.Machines.Add(new Machine { Name = name });
-            db.SaveChanges();
+
+            try
+            {
+                db.SaveChanges();
+            }
+            catch (DbUpdateException ex) when (DbExceptionHelper.IsUniqueConstraintViolation(ex))
+            {
+                throw new Exception(
+                    "Dieser Maschinenname existiert bereits " +
+                    "(wurde gerade eben von einem anderen Benutzer angelegt).");
+            }
         }
     }
 

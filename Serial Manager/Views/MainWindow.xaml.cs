@@ -23,6 +23,7 @@ public partial class MainWindow : Window
     private readonly PrinterService _printerService = new();
 
     private List<Article> _allArticles = new();
+    private List<Article> _customerArticles = new();
     private bool _suppressTextChanged;
 
     public MainWindow()
@@ -421,7 +422,7 @@ public partial class MainWindow : Window
 
         if (selectedArticle != null)
         {
-            var article = _allArticles
+            var article = _customerArticles
                 .FirstOrDefault(a => a.Id == selectedArticle.Id);
 
             if (article != null)
@@ -638,7 +639,29 @@ public partial class MainWindow : Window
     private void LoadArticleList()
     {
         _allArticles = _articleService.GetArticles();
-        cmbArticles.ItemsSource = _allArticles;
+
+        var previousCustomer = cmbCustomer.SelectedItem as string;
+        var customers = ArticleGroupingHelper.GetCustomerNumbers(_allArticles);
+
+        cmbCustomer.ItemsSource = customers;
+        cmbCustomer.SelectedItem =
+            previousCustomer != null && customers.Contains(previousCustomer)
+                ? previousCustomer
+                : ArticleGroupingHelper.AllCustomers;
+
+        ApplyCustomerFilter();
+    }
+
+    private void ApplyCustomerFilter()
+    {
+        var customer = cmbCustomer.SelectedItem as string;
+        _customerArticles = ArticleGroupingHelper.FilterByCustomer(_allArticles, customer);
+        cmbArticles.ItemsSource = _customerArticles;
+    }
+
+    private void cmbCustomer_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ApplyCustomerFilter();
     }
 
     private void MenuAuditLog_Click(object sender, RoutedEventArgs e)
@@ -661,8 +684,8 @@ public partial class MainWindow : Window
         var filter = cmbArticles.Text.Trim();
 
         var filtered = string.IsNullOrEmpty(filter)
-            ? _allArticles
-            : _allArticles
+            ? _customerArticles
+            : _customerArticles
                 .Where(a =>
                     a.ArticleNumber.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
                     a.Description.Contains(filter, StringComparison.OrdinalIgnoreCase))
@@ -671,14 +694,11 @@ public partial class MainWindow : Window
         _suppressTextChanged = true;
         cmbArticles.ItemsSource = filtered;
         cmbArticles.Text = filter;
-        
+
         cmbArticles.ApplyTemplate();
         if (cmbArticles.Template.FindName("PART_EditableTextBox", cmbArticles) is TextBox editableTextBox)
             editableTextBox.CaretIndex = filter.Length;
 
-        // Nicht wieder aufklappen, wenn der Text exakt der bereits
-        // ausgewählten Artikelnummer entspricht (z. B. direkt nach einer
-        // Auswahl per Klick) – nur beim aktiven Tippen/Suchen aufklappen.
         bool isExactSelectedMatch =
             cmbArticles.SelectedItem is Article selected &&
             string.Equals(selected.ArticleNumber, filter, StringComparison.OrdinalIgnoreCase);

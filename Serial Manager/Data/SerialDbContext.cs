@@ -46,7 +46,21 @@ public class SerialDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<User>()
-    .HasIndex(u => u.Username)
-    .IsUnique();
+.HasIndex(u => u.Username)
+.IsUnique();
+
+        // Concurrency-Tokens: EF Core macht daraus nicht automatisch
+        // einen Concurrency-Check nur weil die Property "RowVersion" heißt –
+        // das muss explizit konfiguriert werden, sonst wird die Spalte
+        // beim Speichern nur mitgeschrieben, aber nie auf Konflikte geprüft.
+        modelBuilder.Entity<Article>()
+            .Property(a => a.RowVersion)
+            .IsConcurrencyToken()
+            .ValueGeneratedOnAddOrUpdate();
+
+        modelBuilder.Entity<Machine>()
+            .Property(m => m.RowVersion)
+            .IsConcurrencyToken()
+            .ValueGeneratedOnAddOrUpdate();
     }
 }

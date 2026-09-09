@@ -251,13 +251,12 @@ public class DatabaseInitializer
             ) CHARACTER SET=utf8mb4;");
 
         db.Database.ExecuteSqlRaw(@"
-            CREATE TABLE IF NOT EXISTS `AuditLogEntries` (
+            CREATE TABLE IF NOT EXISTS `Machines` (
                 `Id` int NOT NULL AUTO_INCREMENT,
-                `Created` datetime(6) NOT NULL,
-                `Username` longtext NOT NULL,
-                `Action` longtext NOT NULL,
-                `Details` longtext NOT NULL,
-                PRIMARY KEY (`Id`)
+                `Name` varchar(255) NOT NULL,
+                `RowVersion` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`Id`),
+                UNIQUE KEY `IX_Machines_Name` (`Name`)
             ) CHARACTER SET=utf8mb4;");
 
         // Falls Articles schon vor Einführung der IsActive-Spalte existierte.
@@ -278,6 +277,21 @@ public class DatabaseInitializer
                 alter.CommandText =
                     "ALTER TABLE `Articles` ADD COLUMN `IsActive` tinyint(1) NOT NULL DEFAULT 1;";
                 alter.ExecuteNonQuery();
+            }
+
+            using var checkMachineRowVersion = connection.CreateCommand();
+            checkMachineRowVersion.CommandText = @"SELECT COUNT(*) FROM information_schema.columns
+                                  WHERE table_schema = DATABASE()
+                                    AND table_name = 'Machines'
+                                    AND column_name = 'RowVersion';";
+
+            if (Convert.ToInt32(checkMachineRowVersion.ExecuteScalar()) == 0)
+            {
+                using var alterMachine = connection.CreateCommand();
+                alterMachine.CommandText =
+                    "ALTER TABLE `Machines` ADD COLUMN `RowVersion` timestamp(6) " +
+                    "NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6);";
+                alterMachine.ExecuteNonQuery();
             }
         }
         finally

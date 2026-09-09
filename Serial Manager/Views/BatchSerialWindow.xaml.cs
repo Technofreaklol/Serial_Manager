@@ -1,6 +1,7 @@
-using System.Windows;
 using SerialManager.Models;
 using SerialManager.Services;
+using System.Windows;
+using System.Windows.Controls;
 
 namespace SerialManager.Views;
 
@@ -9,7 +10,8 @@ public partial class BatchSerialWindow : Window
     private readonly ArticleService _articleService = new();
     private readonly MachineService _machineService = new();
     private readonly SerialService _serialService = new();
-    private readonly WindowTitleService _titleService = new();  
+    private readonly WindowTitleService _titleService = new();
+    private List<Article> _allArticles = new();
 
     public BatchSerialWindow()
     {
@@ -17,9 +19,19 @@ public partial class BatchSerialWindow : Window
 
         Title = _titleService.GetTitle("Batch Seriennummer");
 
-        cmbArticle.ItemsSource = _articleService.GetArticles();
+        _allArticles = _articleService.GetArticles();
+        cmbCustomer.ItemsSource = ArticleGroupingHelper.GetCustomerNumbers(_allArticles);
+        cmbCustomer.SelectedIndex = 0;
+
         cmbMachine.ItemsSource = _machineService.GetMachines();
 
+        UpdatePreview();
+    }
+
+    private void cmbCustomer_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var customer = cmbCustomer.SelectedItem as string;
+        cmbArticle.ItemsSource = ArticleGroupingHelper.FilterByCustomer(_allArticles, customer);
         UpdatePreview();
     }
 

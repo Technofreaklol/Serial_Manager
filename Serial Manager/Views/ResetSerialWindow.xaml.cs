@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using Microsoft.EntityFrameworkCore;
 using SerialManager.Models;
 using SerialManager.Services;
 
@@ -9,6 +10,7 @@ public partial class ResetSerialWindow : Window
 {
     private readonly ArticleService _articleService = new();
     private readonly AuditLogService _auditLog = new();
+    private List<Article> _allArticles = new();
 
     private readonly WindowTitleService _titleService = new();
 
@@ -18,7 +20,15 @@ public partial class ResetSerialWindow : Window
 
         Title = _titleService.GetTitle("Seriennummer bearbeiten");
 
-        cmbArticles.ItemsSource = _articleService.GetArticles();
+        _allArticles = _articleService.GetArticles();
+        cmbCustomer.ItemsSource = ArticleGroupingHelper.GetCustomerNumbers(_allArticles);
+        cmbCustomer.SelectedIndex = 0;
+    }
+
+    private void cmbCustomer_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var customer = cmbCustomer.SelectedItem as string;
+        cmbArticles.ItemsSource = ArticleGroupingHelper.FilterByCustomer(_allArticles, customer);
 
         if (cmbArticles.Items.Count > 0)
             cmbArticles.SelectedIndex = 0;
@@ -58,10 +68,25 @@ public partial class ResetSerialWindow : Window
             return;
         }
 
+
         int oldSerial = article.CurrentSerialNumber;
         string reason = txtReason.Text.Trim();
 
-        _articleService.SetCurrentSerial(article.Id, newSerial);
+        try
+        {
+            _articleService.SetCurrentSerial(article.Id, newSerial);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            MessageBox.Show(
+                "Der Artikel wurde in der Zwischenzeit von einem anderen Benutzer geändert " +
+                "(z. B. wurde gerade eine Seriennummer erzeugt).\n\n" +
+                "Bitte dieses Fenster schließen und erneut öffnen.",
+                "Gleichzeitige Bearbeitung",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
 
         var details =
             $"Artikelnummer: {article.ArticleNumber}, {oldSerial:D4} → {newSerial:D4}";
@@ -73,6 +98,7 @@ public partial class ResetSerialWindow : Window
 
         DialogResult = true;
         Close();
+
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
