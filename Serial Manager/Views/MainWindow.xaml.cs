@@ -812,6 +812,24 @@ public partial class MainWindow : Window
             string.Equals(selected.ArticleNumber, filter, StringComparison.OrdinalIgnoreCase);
 
         cmbArticles.IsDropDownOpen = filtered.Count > 0 && !isExactSelectedMatch;
+
+        // Das Öffnen des Dropdowns markiert bei einer editierbaren
+        // ComboBox automatisch den GESAMTEN Text (WPF-Standardverhalten,
+        // wie bei einem Autovervollständigungsfeld). Ohne Gegenmaßnahme
+        // würde der nächste Tastendruck dadurch den kompletten bisher
+        // eingegebenen Text ersetzen, statt ihn zu ergänzen - genau das
+        // sah aus wie "Eingabe wird markiert und überschrieben". Die
+        // Markierung wird deshalb mit niedrigerer Priorität als das
+        // interne SelectAll wieder aufgehoben, damit unser Aufruf
+        // garantiert danach ausgeführt wird.
+        Dispatcher.BeginInvoke(
+            DispatcherPriority.Background,
+            new Action(() =>
+            {
+                editableTextBox.CaretIndex = caretIndex;
+                editableTextBox.SelectionLength = 0;
+            }));
+
         _suppressTextChanged = false;
     }
     private void MenuChangePassword_Click(object sender, RoutedEventArgs e)
