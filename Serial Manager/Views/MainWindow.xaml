@@ -78,6 +78,9 @@ Click="MenuResetSerial_Click"/>
             </MenuItem>
 
             <MenuItem Header="_Hilfe">
+                <MenuItem Header="Nach Updates suchen..."
+                          Click="MenuCheckForUpdates_Click"/>
+                <Separator/>
                 <MenuItem Header="Über"
                           Click="MenuAbout_Click"/>
             </MenuItem>

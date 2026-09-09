@@ -4,11 +4,30 @@ using SerialManager.Services;
 using SerialManager.Views;
 using System.Windows;
 using System.Windows.Threading;
+using Velopack;
 
 namespace SerialManager;
 
 public partial class App : Application
 {
+    // ---------------------------------------------------------------
+    // Eigener Einstiegspunkt statt des automatisch generierten WPF-
+    // Main(). VelopackApp.Build().Run() MUSS als Allererstes passieren:
+    // Beim (Erst-)Start nach der Installation, bei einem Update oder
+    // bei der Deinstallation übernimmt Velopack hier kurz die
+    // Kontrolle (z. B. um Verknüpfungen anzulegen) und beendet den
+    // Prozess danach sofort wieder - der restliche Code darf also
+    // nicht vorher laufen.
+    // ---------------------------------------------------------------
+    [STAThread]
+    private static void Main(string[] args)
+    {
+        VelopackApp.Build().Run();
+
+        var app = new App();
+        app.InitializeComponent();
+        app.Run();
+    }
 
     private void App_DispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {

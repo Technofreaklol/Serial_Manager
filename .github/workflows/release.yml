@@ -1,0 +1,75 @@
+name: Release
+
+# Wird ausgelöst, sobald ein Tag im Format "v1.2.3" gepusht wird.
+# Ablauf zum Veröffentlichen einer neuen Version:
+#   1. <Version> in "Serial Manager/Serial Manager.csproj" anpassen
+#      (rein informativ, siehe Schritt "Anwendung veröffentlichen" unten)
+#   2. git commit
+#   3. git tag v1.2.3
+#   4. git push origin main --tags
+# Dieser Workflow baut die Anwendung, verpackt sie mit Velopack (vpk)
+# zu einem Windows-Installer + Update-Paketen und veröffentlicht sie
+# automatisch als GitHub Release.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Version aus Tag ermitteln
+        id: version
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: .NET SDK installieren
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Anwendung veröffentlichen (dotnet publish)
+        run: >
+          dotnet publish "Serial Manager/Serial Manager.csproj"
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish
+
+      - name: vpk-CLI installieren
+        run: dotnet tool install -g vpk
+
+      - name: Vorherige Releases laden (für Delta-Updates)
+        run: vpk download github --repoUrl https://github.com/${{ github.repository }}
+        continue-on-error: true
+
+      - name: Installer & Update-Pakete erstellen
+        run: >
+          vpk pack
+          --packId "SerialManager"
+          --packVersion ${{ steps.version.outputs.version }}
+          --packDir publish
+          --mainExe "Serial Manager.exe"
+          --packTitle "Serial Manager"
+          --packAuthors "Nikolai Hieber"
+          --icon "Serial Manager/Assets/Logo.ico"
+
+      - name: Release auf GitHub veröffentlichen
+        run: >
+          vpk upload github
+          --repoUrl https://github.com/${{ github.repository }}
+          --token ${{ secrets.GITHUB_TOKEN }}
+          --publish
+          --releaseName "Serial Manager ${{ steps.version.outputs.version }}"
+          --tag v${{ steps.version.outputs.version }}
