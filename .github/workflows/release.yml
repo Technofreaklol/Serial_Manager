@@ -54,16 +54,39 @@ jobs:
         run: vpk download github --repoUrl https://github.com/${{ github.repository }}
         continue-on-error: true
 
+      # Optional: Code-Signing-Zertifikat. Erst aktiv, wenn die Secrets
+      # WINDOWS_CERTIFICATE_BASE64 (Base64-codierte .pfx-Datei) und
+      # WINDOWS_CERTIFICATE_PASSWORD im Repo hinterlegt sind (Settings ->
+      # Secrets and variables -> Actions). Ohne diese Secrets läuft der
+      # Workflow unverändert weiter - nur eben unsigniert. Siehe README.md
+      # für Optionen/Kosten (z. B. Azure Trusted Signing, ~10 $/Monat).
+      - name: Code-Signing-Zertifikat vorbereiten
+        if: ${{ env.HAS_CERT == 'true' }}
+        env:
+          HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' }}
+        shell: bash
+        run: |
+          echo "${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}" | base64 --decode > cert.pfx
+
       - name: Installer & Update-Pakete erstellen
-        run: >
-          vpk pack
-          --packId "SerialManager"
-          --packVersion ${{ steps.version.outputs.version }}
-          --packDir publish
-          --mainExe "Serial Manager.exe"
-          --packTitle "Serial Manager"
-          --packAuthors "Nikolai Hieber"
-          --icon "Serial Manager/Assets/Logo.ico"
+        shell: bash
+        env:
+          HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' }}
+        run: |
+          SIGN_ARGS=()
+          if [ "$HAS_CERT" = "true" ]; then
+            SIGN_ARGS=(--signParams "/f cert.pfx /p \"${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}\" /tr http://timestamp.digicert.com /td sha256 /fd sha256")
+          fi
+
+          vpk pack \
+            --packId "SerialManager" \
+            --packVersion "${{ steps.version.outputs.version }}" \
+            --packDir publish \
+            --mainExe "SerialManager.exe" \
+            --packTitle "Serial Manager" \
+            --packAuthors "Nikolai Hieber" \
+            --icon "Serial Manager/Assets/Logo.ico" \
+            "${SIGN_ARGS[@]}"
 
       - name: Release auf GitHub veröffentlichen
         run: >

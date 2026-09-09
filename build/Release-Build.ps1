@@ -25,18 +25,30 @@
     veröffentlicht (benötigt ein GitHub-Token mit Schreibrechten auf
     das Repo, siehe README.md).
 
+    .PARAMETER SignParams
+    Optional. signtool.exe-Parameter zum Signieren von Setup.exe/App
+    (z. B. '/f "C:\certs\meincert.pfx" /p "Kennwort" /tr http://timestamp.digicert.com /td sha256 /fd sha256').
+    Ohne diesen Parameter wird NICHT signiert -> Windows zeigt beim
+    Ausführen eine "Unbekannter Herausgeber"-Warnung. Siehe README.md
+    für Optionen/Kosten.
+
     .EXAMPLE
     ./build/Release-Build.ps1 -Version 1.1.0
 
     .EXAMPLE
     $env:GITHUB_TOKEN = "ghp_xxx"
     ./build/Release-Build.ps1 -Version 1.1.0 -Publish
+
+    .EXAMPLE
+    ./build/Release-Build.ps1 -Version 1.1.0 -SignParams '/f "C:\certs\cert.pfx" /p "Kennwort" /tr http://timestamp.digicert.com /td sha256 /fd sha256'
 #>
 param(
     [Parameter(Mandatory = $true)]
     [string]$Version,
 
-    [switch]$Publish
+    [switch]$Publish,
+
+    [string]$SignParams
 )
 
 $ErrorActionPreference = "Stop"
@@ -67,15 +79,28 @@ vpk download github --repoUrl $repoUrl -o $releaseDir
 # Fehler, deshalb wird der Exit-Code hier bewusst ignoriert.
 
 Write-Host "==> vpk pack..." -ForegroundColor Cyan
-vpk pack `
-    --packId "SerialManager" `
-    --packVersion $Version `
-    --packDir $publishDir `
-    --mainExe "Serial Manager.exe" `
-    --packTitle "Serial Manager" `
-    --packAuthors "Nikolai Hieber" `
-    --icon $iconPath `
-    -o $releaseDir
+
+$vpkArgs = @(
+    "pack",
+    "--packId", "SerialManager",
+    "--packVersion", $Version,
+    "--packDir", $publishDir,
+    "--mainExe", "SerialManager.exe",
+    "--packTitle", "Serial Manager",
+    "--packAuthors", "Nikolai Hieber",
+    "--icon", $iconPath,
+    "-o", $releaseDir
+)
+
+if ($SignParams) {
+    $vpkArgs += @("--signParams", $SignParams)
+}
+else {
+    Write-Host "Hinweis: Ohne -SignParams wird NICHT signiert - Windows zeigt beim" -ForegroundColor Yellow
+    Write-Host "Ausführen eine 'Unbekannter Herausgeber'-Warnung an. Details siehe README.md." -ForegroundColor Yellow
+}
+
+vpk @vpkArgs
 
 if ($LASTEXITCODE -ne 0) { throw "vpk pack ist fehlgeschlagen." }
 
