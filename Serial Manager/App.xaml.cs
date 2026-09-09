@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using SerialManager.Data;
 using SerialManager.Services;
 using SerialManager.Views;
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using Velopack;
@@ -68,6 +69,46 @@ public partial class App : Application
         await Dispatcher.InvokeAsync(
             () => { },
             DispatcherPriority.Render);
+
+        // ---------------------------------------------------------
+        // Erststart: Es existiert noch keine Datenbank-Konfiguration
+        // (database.json). Ohne diese Prüfung würde
+        // DatabaseConfigurationService.Load() weiter unten im Hintergrund
+        // unbemerkt eine leere Standard-SQLite-Datenbank anlegen, ohne
+        // dem Benutzer je die Möglichkeit zu geben, stattdessen eine
+        // bereits vorhandene Datenbank auszuwählen. Deshalb hier VOR
+        // dem ersten Load() explizit die Datenbankeinrichtung zeigen.
+        // ---------------------------------------------------------
+        if (!File.Exists(AppPaths.DatabaseConfigFile))
+        {
+            splash.Hide();
+
+            MessageBox.Show(
+                "Es wurde noch keine Datenbank eingerichtet.\n\n" +
+                "Wähle im folgenden Fenster entweder eine bereits " +
+                "vorhandene Datenbank aus (\"Durchsuchen...\") oder " +
+                "übernimm die vorausgefüllte SQLite-Datei und klicke " +
+                "auf \"Initialisieren\", um eine neue Datenbank " +
+                "anzulegen. Danach mit \"Speichern\" bestätigen.",
+                "Datenbank einrichten",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            var firstStartSetupWindow = new DatabaseSetupWindow();
+
+            if (firstStartSetupWindow.ShowDialog() != true)
+            {
+                splash.Close();
+                Shutdown();
+                return;
+            }
+
+            splash.Show();
+
+            await Dispatcher.InvokeAsync(
+                () => { },
+                DispatcherPriority.Render);
+        }
 
         while (true)
         {
