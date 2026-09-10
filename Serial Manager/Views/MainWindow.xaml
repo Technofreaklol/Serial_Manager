@@ -5,7 +5,7 @@
         Height="760"
         Width="1200"
         MinHeight="760"
-        MinWidth="1200"
+        MinWidth="950"
         WindowStartupLocation="CenterScreen" >
 
     <Grid>
@@ -117,7 +117,7 @@ Click="MenuResetSerial_Click"/>
                 <ColumnDefinition Width="20"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            
+
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -282,7 +282,6 @@ Click="MenuResetSerial_Click"/>
         Height="55"
         FontSize="18"
         FontWeight="Bold"
-        Cursor="Hand"
         Content="Seriennummer erzeugen"
 
         Click="btnGenerate_Click"/>
@@ -333,7 +332,7 @@ Click="MenuResetSerial_Click"/>
 
                                 <MenuItem Header="Details"
                       Click="MenuDetails_Click"/>
-                                
+
                                 <Separator/>
 
                                 <MenuItem Header="Seriennummer löschen..."
@@ -376,7 +375,7 @@ Click="MenuResetSerial_Click"/>
             <StatusBarItem DockPanel.Dock="Right">
                 <TextBlock x:Name="lblCurrentUser"/>
             </StatusBarItem>
-            
+
             <StatusBarItem>
                 <TextBlock x:Name="lblStatus"
                            Text="Bereit"/>
@@ -401,7 +400,7 @@ Click="MenuResetSerial_Click"/>
         </StatusBar>
 
     </Grid>
-    
-    
+
+
 
 </Window>

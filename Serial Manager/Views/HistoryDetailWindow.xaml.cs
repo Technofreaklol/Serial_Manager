@@ -17,6 +17,7 @@ public partial class HistoryDetailWindow : Window
         lblSerial.Text = history.SerialNumber;
         lblMachine.Text = history.Machine;
         lblCreated.Text = history.Created.ToString("dd.MM.yyyy HH:mm:ss");
+        lblCreatedBy.Text = history.Operator;
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

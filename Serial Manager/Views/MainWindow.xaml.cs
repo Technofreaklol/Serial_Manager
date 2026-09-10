@@ -1,19 +1,19 @@
+using Microsoft.Win32;
+using SerialManager.Helpers;
 using SerialManager.Models;
 using SerialManager.Services;
+using SerialManager.Views;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using SerialManager.Views;
-using System.Linq;
 using System.Windows.Input;
-using Microsoft.Win32;
-using System.IO;
-using System.Text;
 using System.Windows.Threading;
 using Velopack;
-using SerialManager.Helpers;
 
 namespace SerialManager;
 

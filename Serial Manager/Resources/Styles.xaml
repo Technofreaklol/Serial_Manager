@@ -11,7 +11,7 @@
     <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="White"/>
     <SolidColorBrush x:Key="BackgroundBrush" Color="#F5F5F5"/>
 
-    <!-- Fenster --> 
+    <!-- Fenster -->
     <Style TargetType="Window">
         <Setter Property="Background" Value="{StaticResource BackgroundBrush}"/>
 

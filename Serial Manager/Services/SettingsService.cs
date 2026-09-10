@@ -66,6 +66,29 @@ public class SettingsService
         SetValue(key, value.ToString());
     }
 
+    // InvariantCulture ist hier wichtig: je nach Windows-Ländereinstellung
+    // des jeweiligen Benutzers wäre sonst mal "60.5" und mal "60,5" in der
+    // Datenbank gespeichert - beim Lesen durch einen Benutzer mit anderer
+    // Ländereinstellung würde das Parsen fehlschlagen (stiller Rückfall auf
+    // den Default-Wert).
+    public double GetDouble(string key, double defaultValue = 0)
+    {
+        string value = GetValue(key, defaultValue.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        return double.TryParse(
+            value,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out double result)
+            ? result
+            : defaultValue;
+    }
+
+    public void SetDouble(string key, double value)
+    {
+        SetValue(key, value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     public Dictionary<string, string> GetAll()
     {
         using var db = DbContextFactory.Create();

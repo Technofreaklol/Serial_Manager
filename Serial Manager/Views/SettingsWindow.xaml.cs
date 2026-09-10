@@ -1,14 +1,30 @@
-﻿using System.Windows;
+using System.IO;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Microsoft.Win32;
+using SerialManager.Models;
 using SerialManager.Services;
 
 namespace SerialManager.Views;
 
 public partial class SettingsWindow : Window
 {
+    // Maximale Logo-Dateigröße: das Bild wird als Base64-Text in der
+    // Settings-Tabelle der Datenbank gespeichert - ohne Obergrenze könnte
+    // ein großes Foto die Datenbank unnötig aufblähen und jeden
+    // Einstellungs-/Etikettenzugriff verlangsamen.
+    private const int MaxLogoBytes = 500 * 1024;
+
     private readonly SettingsService _settingsService = new();
+    private readonly LabelLayoutService _labelLayoutService = new();
     private readonly WindowTitleService _titleService = new();
+
+    // Base64 des aktuell im Fenster ausgewählten Logos (noch nicht
+    // gespeichert, bis auf "Speichern" geklickt wird). Leerer String =
+    // kein Logo.
+    private string _pendingLogoBase64 = "";
 
     // Kleine Auswahl an Vorlagenfarben, die als Klick-Vorschläge angezeigt
     // werden - keine feste Liste von Optionen, die eigene Hex-Eingabe im
@@ -16,7 +32,7 @@ public partial class SettingsWindow : Window
     private static readonly string[] ColorPresets =
     {
         ThemeService.DefaultButtonColorHex, // Blau (Standard)
-        "#E32D8C", // Pink
+        "#2E7D32", // Grün
         "#C62828", // Rot
         "#F57C00", // Orange
         "#6A1B9A", // Lila
@@ -84,6 +100,23 @@ public partial class SettingsWindow : Window
             ThemeService.GetSavedButtonColorHex();
 
         UpdateColorPreview();
+
+        var labelLayout = _labelLayoutService.Load();
+
+        chkLabelCompany.IsChecked = labelLayout.ShowCompanyName;
+        chkLabelArticle.IsChecked = labelLayout.ShowArticleNumber;
+        chkLabelDescription.IsChecked = labelLayout.ShowDescription;
+        chkLabelSerial.IsChecked = labelLayout.ShowSerialNumber;
+        chkLabelMachine.IsChecked = labelLayout.ShowMachine;
+        chkLabelDate.IsChecked = labelLayout.ShowDate;
+        chkLabelOperator.IsChecked = labelLayout.ShowOperator;
+        chkLabelQr.IsChecked = labelLayout.ShowQrCode;
+
+        txtLabelWidthMm.Text = labelLayout.WidthMm.ToString(System.Globalization.CultureInfo.CurrentCulture);
+        txtLabelHeightMm.Text = labelLayout.HeightMm.ToString(System.Globalization.CultureInfo.CurrentCulture);
+
+        _pendingLogoBase64 = labelLayout.LogoBase64;
+        UpdateLogoPreview();
     }
 
     private void txtButtonColor_TextChanged(object sender, TextChangedEventArgs e)
@@ -129,6 +162,77 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void BtnChooseLogo_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Filter = "Bilddateien (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp"
+        };
+
+        if (dialog.ShowDialog() != true)
+            return;
+
+        byte[] bytes;
+
+        try
+        {
+            bytes = File.ReadAllBytes(dialog.FileName);
+        }
+        catch (IOException ex)
+        {
+            MessageBox.Show($"Datei konnte nicht gelesen werden:\n{ex.Message}");
+            return;
+        }
+
+        if (bytes.Length > MaxLogoBytes)
+        {
+            MessageBox.Show(
+                $"Das Bild ist zu groß ({bytes.Length / 1024} KB). " +
+                $"Bitte ein Bild mit maximal {MaxLogoBytes / 1024} KB wählen.");
+            return;
+        }
+
+        _pendingLogoBase64 = Convert.ToBase64String(bytes);
+
+        UpdateLogoPreview();
+    }
+
+    private void BtnRemoveLogo_Click(object sender, RoutedEventArgs e)
+    {
+        _pendingLogoBase64 = "";
+
+        UpdateLogoPreview();
+    }
+
+    private void UpdateLogoPreview()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingLogoBase64))
+        {
+            imgLogoPreview.Source = null;
+            return;
+        }
+
+        try
+        {
+            var bytes = Convert.FromBase64String(_pendingLogoBase64);
+
+            using var stream = new MemoryStream(bytes);
+
+            var image = new BitmapImage();
+
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = stream;
+            image.EndInit();
+
+            imgLogoPreview.Source = image;
+        }
+        catch (FormatException)
+        {
+            imgLogoPreview.Source = null;
+        }
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         if (!int.TryParse(txtBackupCount.Text, out int backupCount) || backupCount < 1)
@@ -145,6 +249,15 @@ public partial class SettingsWindow : Window
         {
             MessageBox.Show(
                 "Bitte eine gültige Farbe im Format #RRGGBB eingeben (z. B. #1976D2).");
+
+            return;
+        }
+
+        if (!TryParseMillimeters(txtLabelWidthMm.Text, out double labelWidthMm) ||
+            !TryParseMillimeters(txtLabelHeightMm.Text, out double labelHeightMm))
+        {
+            MessageBox.Show(
+                "Bitte eine gültige Etikettenbreite/-höhe in mm eingeben (10 - 500).");
 
             return;
         }
@@ -170,6 +283,21 @@ public partial class SettingsWindow : Window
         ThemeService.SaveButtonColor(buttonColorHex);
         ThemeService.ApplyButtonColor(buttonColorHex);
 
+        _labelLayoutService.Save(new LabelLayoutOptions
+        {
+            ShowCompanyName = chkLabelCompany.IsChecked == true,
+            ShowArticleNumber = chkLabelArticle.IsChecked == true,
+            ShowDescription = chkLabelDescription.IsChecked == true,
+            ShowSerialNumber = chkLabelSerial.IsChecked == true,
+            ShowMachine = chkLabelMachine.IsChecked == true,
+            ShowDate = chkLabelDate.IsChecked == true,
+            ShowOperator = chkLabelOperator.IsChecked == true,
+            ShowQrCode = chkLabelQr.IsChecked == true,
+            WidthMm = labelWidthMm,
+            HeightMm = labelHeightMm,
+            LogoBase64 = _pendingLogoBase64
+        });
+
         WindowTitleService.NotifyTitleChanged();
 
         DialogResult = true;
@@ -180,5 +308,29 @@ public partial class SettingsWindow : Window
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    // Akzeptiert sowohl "60,5" als auch "60.5" als Dezimaltrennzeichen,
+    // unabhängig von der Windows-Ländereinstellung - Benutzer tippen je
+    // nach Gewohnheit mal Komma, mal Punkt.
+    private static bool TryParseMillimeters(string text, out double millimeters)
+    {
+        text = text.Trim();
+
+        if (double.TryParse(
+                text,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.CurrentCulture,
+                out millimeters) ||
+            double.TryParse(
+                text,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out millimeters))
+        {
+            return millimeters is >= 10 and <= 500;
+        }
+
+        return false;
     }
 }

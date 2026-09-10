@@ -3,62 +3,62 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Benutzerverwaltung" Height="530" Width="700"
         WindowStartupLocation="CenterOwner">
-	<Grid Margin="15">
-		<Grid.RowDefinitions>
-			<RowDefinition Height="*"/>
-			<RowDefinition Height="Auto"/>
-		</Grid.RowDefinitions>
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-		<DataGrid x:Name="dgUsers" Grid.Row="0" AutoGenerateColumns="False"
+        <DataGrid x:Name="dgUsers" Grid.Row="0" AutoGenerateColumns="False"
                   IsReadOnly="True" SelectionMode="Single"
                   SelectionChanged="dgUsers_SelectionChanged">
-			<DataGrid.Columns>
-				<DataGridTextColumn Header="Benutzername" Binding="{Binding Username}" Width="140"/>
-				<DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="160"/>
-				<DataGridTextColumn Header="Rolle" Binding="{Binding Role}" Width="120"/>
-				<DataGridCheckBoxColumn Header="Aktiv" Binding="{Binding IsActive}" Width="60"/>
-				<DataGridTextColumn Header="Letzte Anmeldung" Binding="{Binding LastLogin}" Width="150"/>
-			</DataGrid.Columns>
-		</DataGrid>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Benutzername" Binding="{Binding Username}" Width="140"/>
+                <DataGridTextColumn Header="Name" Binding="{Binding FullName}" Width="160"/>
+                <DataGridTextColumn Header="Rolle" Binding="{Binding Role}" Width="120"/>
+                <DataGridCheckBoxColumn Header="Aktiv" Binding="{Binding IsActive}" Width="60"/>
+                <DataGridTextColumn Header="Letzte Anmeldung" Binding="{Binding LastLogin}" Width="150"/>
+            </DataGrid.Columns>
+        </DataGrid>
 
-		<Grid Grid.Row="1" Margin="0,15,0,0">
-			<Grid.RowDefinitions>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-			</Grid.RowDefinitions>
-			<Grid.ColumnDefinitions>
-				<ColumnDefinition Width="130"/>
-				<ColumnDefinition Width="*"/>
-			</Grid.ColumnDefinitions>
+        <Grid Grid.Row="1" Margin="0,15,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="130"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-			<TextBlock Text="Name:" VerticalAlignment="Center"/>
-			<TextBox x:Name="txtName" Grid.Column="1" Margin="0,3"/>
+            <TextBlock Text="Name:" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtName" Grid.Column="1" Margin="0,3"/>
 
-			<TextBlock Grid.Row="1" Text="Benutzername:" VerticalAlignment="Center"/>
-			<TextBox x:Name="txtUsername" Grid.Row="1" Grid.Column="1" Margin="0,3"/>
+            <TextBlock Grid.Row="1" Text="Benutzername:" VerticalAlignment="Center"/>
+            <TextBox x:Name="txtUsername" Grid.Row="1" Grid.Column="1" Margin="0,3"/>
 
-			<TextBlock Grid.Row="2" Text="Passwort:" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="2" Text="Passwort:" VerticalAlignment="Center"/>
             <PasswordBox x:Name="txtPassword" Grid.Row="2" Grid.Column="1" VerticalContentAlignment="Center" Margin="0,3" Height="30"/>
 
-			<TextBlock Grid.Row="3" Grid.Column="1"
+            <TextBlock Grid.Row="3" Grid.Column="1"
                        Text="Beim Bearbeiten leer lassen, um das Passwort nicht zu ändern."
                        FontSize="10" Foreground="Gray" Margin="0,0,0,6"/>
 
-			<TextBlock Grid.Row="4" Text="Rolle:" VerticalAlignment="Center"/>
-			<ComboBox x:Name="cmbRole" Grid.Row="4" Grid.Column="1" Margin="0,3">
-				<ComboBoxItem Content="User"/>
-				<ComboBoxItem Content="Administrator"/>
-			</ComboBox>
+            <TextBlock Grid.Row="4" Text="Rolle:" VerticalAlignment="Center"/>
+            <ComboBox x:Name="cmbRole" Grid.Row="4" Grid.Column="1" Margin="0,3">
+                <ComboBoxItem Content="User"/>
+                <ComboBoxItem Content="Administrator"/>
+            </ComboBox>
 
             <StackPanel Grid.Row="5" Grid.ColumnSpan="2" Orientation="Horizontal"
                         HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button Content="Neu" Width="90" Height="32"
                         Margin="0,0,10,0" Click="New_Click"/>
-                <Button x:Name="btnSave" Content="Neu anlegen" Width="120" Height="32"
+                <Button x:Name="btnSave" Content="Speichern" Width="120" Height="32"
                         Margin="0,0,10,0" Click="Save_Click"/>
                 <Button Content="Aktivieren/Deaktivieren" Width="160" Height="32"
                         Margin="0,0,10,0" Click="ToggleActive_Click"/>
@@ -66,5 +66,5 @@
                         Click="Delete_Click"/>
             </StackPanel>
         </Grid>
-	</Grid>
+    </Grid>
 </Window>
