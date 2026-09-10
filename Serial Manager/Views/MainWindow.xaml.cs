@@ -13,6 +13,7 @@ using System.IO;
 using System.Text;
 using System.Windows.Threading;
 using Velopack;
+using SerialManager.Helpers;
 
 namespace SerialManager;
 

@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using Microsoft.EntityFrameworkCore;
+using SerialManager.Helpers;
 using SerialManager.Models;
 using SerialManager.Services;
 

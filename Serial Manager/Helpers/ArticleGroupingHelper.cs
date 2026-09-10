@@ -1,6 +1,6 @@
 ﻿using SerialManager.Models;
 
-namespace SerialManager.Views;
+namespace SerialManager.Helpers;
 
 internal static class ArticleGroupingHelper
 {
