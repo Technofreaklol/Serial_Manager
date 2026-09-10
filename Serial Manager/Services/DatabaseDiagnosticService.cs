@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using MySqlConnector;
 using SerialManager.Data;
 
@@ -19,6 +20,13 @@ public class DatabaseDiagnosticService
             {
                 status.DatabaseName = config.SQLite.File;
                 status.Server = "Lokal";
+            }
+            else if (config.Provider == "MSSQL")
+            {
+                status.DatabaseName = config.MSSQL.Database;
+                status.Server = config.MSSQL.Port > 0
+                    ? $"{config.MSSQL.Server},{config.MSSQL.Port}"
+                    : config.MSSQL.Server;
             }
             else
             {
@@ -63,7 +71,7 @@ public class DatabaseDiagnosticService
                 return false;
             }
 
-            if (db.Database.IsSqlite())
+            if (db.Database.IsSqlite() || db.Database.IsSqlServer())
                 db.Database.EnsureCreated();
             else if (db.Database.IsMySql())
                 db.Database.Migrate();
@@ -151,21 +159,70 @@ public class DatabaseDiagnosticService
             {
                 connection.Close();
             }
+
+            return;
+        }
+
+        if (db.Database.IsSqlServer())
+        {
+            var connection = db.Database.GetDbConnection();
+            connection.Open();
+            try
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = @"SELECT i.name, c.name
+                                        FROM sys.indexes i
+                                        JOIN sys.index_columns ic
+                                            ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+                                        JOIN sys.columns c
+                                            ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+                                        WHERE i.object_id = OBJECT_ID('dbo.SerialHistories')
+                                        ORDER BY i.name, ic.key_ordinal;";
+                using var reader = command.ExecuteReader();
+
+                var columnsByIndex = new Dictionary<string, List<string>>();
+
+                while (reader.Read())
+                {
+                    var name = reader.GetString(0);
+                    var column = reader.GetString(1);
+
+                    if (!columnsByIndex.TryGetValue(name, out var columns))
+                        columnsByIndex[name] = columns = new List<string>();
+
+                    columns.Add(column);
+                }
+
+                foreach (var (name, columns) in columnsByIndex)
+                {
+                    if (name == "IX_SerialHistories_SerialNumber")
+                        status.LegacySerialIndexFound = true;
+
+                    if (name == "IX_SerialHistories_ArticleNumber_SerialNumber" &&
+                        columns.Count == 2 &&
+                        columns[0] == "ArticleNumber" && columns[1] == "SerialNumber")
+                        status.SerialIndexOk = true;
+                }
+            }
+            finally
+            {
+                connection.Close();
+            }
         }
     }
 
     private static void CheckMigrations(SerialDbContext db, DatabaseStatus status)
     {
-        // SQLite nutzt bewusst keine EF-Migrationen (siehe DatabaseInitializer:
-        // EnsureCreated() + manuelle Spalten-Patches statt Migrate()). Die
-        // __EFMigrationsHistory-Tabelle wird dabei nie angelegt/befüllt, daher
-        // würde GetPendingMigrations() hier IMMER alle Migrationen als
-        // "ausstehend" melden – unabhängig davon, ob das Schema aktuell ist.
-        // Das wäre bei jeder SQLite-Datenbank irreführend, deshalb hier
-        // gar nicht erst prüfen.
-        if (db.Database.IsSqlite())
+        // SQLite und SQL Server nutzen bewusst keine EF-Migrationen (siehe
+        // DatabaseInitializer: EnsureCreated() + manuelle Spalten-Patches
+        // statt Migrate()). Die __EFMigrationsHistory-Tabelle wird dabei nie
+        // angelegt/befüllt, daher würde GetPendingMigrations() hier IMMER
+        // alle Migrationen als "ausstehend" melden – unabhängig davon, ob das
+        // Schema aktuell ist. Das wäre bei jeder solchen Datenbank
+        // irreführend, deshalb hier gar nicht erst prüfen.
+        if (db.Database.IsSqlite() || db.Database.IsSqlServer())
         {
-            status.MigrationStatus = "Nicht zutreffend (SQLite nutzt automatische Schemaprüfung)";
+            status.MigrationStatus = "Nicht zutreffend (automatische Schemaprüfung statt Migrationen)";
             return;
         }
 
@@ -221,6 +278,46 @@ public class DatabaseDiagnosticService
                 catch (MySqlException ex) when (ex.Number == 1061)
                 {
                     // Index existiert bereits.
+                }
+            }
+            finally
+            {
+                connection.Close();
+            }
+
+            return;
+        }
+
+        if (db.Database.IsSqlServer())
+        {
+            var connection = db.Database.GetDbConnection();
+            connection.Open();
+            try
+            {
+                using var check = connection.CreateCommand();
+                check.CommandText = @"SELECT COUNT(*) FROM sys.indexes
+                                      WHERE object_id = OBJECT_ID('dbo.SerialHistories')
+                                        AND name = 'IX_SerialHistories_SerialNumber';";
+
+                if (Convert.ToInt32(check.ExecuteScalar()) > 0)
+                {
+                    using var drop = connection.CreateCommand();
+                    drop.CommandText =
+                        "DROP INDEX [IX_SerialHistories_SerialNumber] ON [dbo].[SerialHistories];";
+                    drop.ExecuteNonQuery();
+                }
+
+                using var checkNew = connection.CreateCommand();
+                checkNew.CommandText = @"SELECT COUNT(*) FROM sys.indexes
+                                         WHERE object_id = OBJECT_ID('dbo.SerialHistories')
+                                           AND name = 'IX_SerialHistories_ArticleNumber_SerialNumber';";
+
+                if (Convert.ToInt32(checkNew.ExecuteScalar()) == 0)
+                {
+                    using var create = connection.CreateCommand();
+                    create.CommandText = @"CREATE UNIQUE INDEX [IX_SerialHistories_ArticleNumber_SerialNumber]
+                                           ON [dbo].[SerialHistories] ([ArticleNumber], [SerialNumber]);";
+                    create.ExecuteNonQuery();
                 }
             }
             finally

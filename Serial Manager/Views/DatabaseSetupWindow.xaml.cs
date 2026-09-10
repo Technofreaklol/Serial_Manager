@@ -32,8 +32,12 @@ public partial class DatabaseSetupWindow : Window
     {
         _config = _configService.Load();
 
-        cmbProvider.SelectedIndex =
-            _config.Provider == "MySQL" ? 1 : 0;
+        cmbProvider.SelectedIndex = _config.Provider switch
+        {
+            "MySQL" => 1,
+            "MSSQL" => 2,
+            _ => 0
+        };
 
         txtSQLiteFile.Text = _config.SQLite.File;
 
@@ -43,13 +47,25 @@ public partial class DatabaseSetupWindow : Window
         txtUser.Text = _config.MySQL.Username;
         txtPassword.Password = _config.MySQL.Password;
 
+        txtMsSqlServer.Text = _config.MSSQL.Server;
+        txtMsSqlPort.Text = _config.MSSQL.Port > 0
+            ? _config.MSSQL.Port.ToString()
+            : "";
+        txtMsSqlDatabase.Text = _config.MSSQL.Database;
+        txtMsSqlUser.Text = _config.MSSQL.Username;
+        txtMsSqlPassword.Password = _config.MSSQL.Password;
+
         UpdateControls();
     }
 
     private void SaveConfiguration()
     {
-        _config.Provider =
-            cmbProvider.SelectedIndex == 0 ? "SQLite" : "MySQL";
+        _config.Provider = cmbProvider.SelectedIndex switch
+        {
+            1 => "MySQL",
+            2 => "MSSQL",
+            _ => "SQLite"
+        };
 
         _config.SQLite.File = txtSQLiteFile.Text.Trim();
 
@@ -62,20 +78,34 @@ public partial class DatabaseSetupWindow : Window
         _config.MySQL.Username = txtUser.Text.Trim();
         _config.MySQL.Password = txtPassword.Password;
 
+        _config.MSSQL.Server = txtMsSqlServer.Text.Trim();
+
+        _config.MSSQL.Port = int.TryParse(txtMsSqlPort.Text, out int mssqlPort)
+            ? mssqlPort
+            : 0;
+
+        _config.MSSQL.Database = txtMsSqlDatabase.Text.Trim();
+        _config.MSSQL.Username = txtMsSqlUser.Text.Trim();
+        _config.MSSQL.Password = txtMsSqlPassword.Password;
+
         _configService.Save(_config);
     }
 
     private void UpdateControls()
     {
-        bool sqlite = cmbProvider.SelectedIndex == 0;
+        int selected = cmbProvider.SelectedIndex;
 
-        grpSQLite.Visibility = sqlite
+        grpSQLite.Visibility = selected == 0
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        grpMySql.Visibility = sqlite
-            ? Visibility.Collapsed
-            : Visibility.Visible;
+        grpMySql.Visibility = selected == 1
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        grpMsSql.Visibility = selected == 2
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void cmbProvider_SelectionChanged(object sender, SelectionChangedEventArgs e)

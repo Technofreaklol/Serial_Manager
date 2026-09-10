@@ -32,6 +32,7 @@
 
                 <ComboBoxItem Content="SQLite"/>
                 <ComboBoxItem Content="MySQL"/>
+                <ComboBoxItem Content="Microsoft SQL Server"/>
 
             </ComboBox>
 
@@ -133,6 +134,82 @@
                                  Grid.Column="1"
                                  VerticalContentAlignment="Center"
                                  Margin="0,10,0,0" Height="30"/>
+
+                </Grid>
+
+            </GroupBox>
+
+            <!-- Microsoft SQL Server -->
+
+            <GroupBox x:Name="grpMsSql"
+                      Header="Microsoft SQL Server">
+
+                <Grid Margin="10">
+
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="130"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Server"
+                               VerticalAlignment="Center"/>
+
+                    <TextBox x:Name="txtMsSqlServer"
+                             Grid.Column="1" Margin="0,4,0,4"/>
+
+                    <TextBlock Grid.Row="1"
+                               Margin="0,10,0,0"
+                               Text="Port (optional)"/>
+
+                    <TextBox x:Name="txtMsSqlPort"
+                             Grid.Row="1"
+                             Grid.Column="1"
+                             Margin="0,10,0,0"/>
+
+                    <TextBlock Grid.Row="2"
+                               Margin="0,10,0,0"
+                               Text="Datenbank"/>
+
+                    <TextBox x:Name="txtMsSqlDatabase"
+                             Grid.Row="2"
+                             Grid.Column="1"
+                             Margin="0,10,0,0"/>
+
+                    <TextBlock Grid.Row="3"
+                               Margin="0,10,0,0"
+                               Text="Benutzer"/>
+
+                    <TextBox x:Name="txtMsSqlUser"
+                             Grid.Row="3"
+                             Grid.Column="1"
+                             Margin="0,10,0,0"/>
+
+                    <TextBlock Grid.Row="4"
+                               Margin="0,14,0,-4"
+                               Text="Passwort"/>
+
+                    <PasswordBox x:Name="txtMsSqlPassword"
+                                 Grid.Row="4"
+                                 Grid.Column="1"
+                                 VerticalContentAlignment="Center"
+                                 Margin="0,10,0,0" Height="30"/>
+
+                    <TextBlock Grid.Row="5"
+                               Grid.ColumnSpan="2"
+                               Margin="0,14,0,0"
+                               TextWrapping="Wrap"
+                               FontSize="11"
+                               Foreground="Gray"
+                               Text="Bei einer benannten Instanz (z. B. localhost\SQLEXPRESS) Port leer lassen und die Instanz direkt im Server-Feld angeben. Es wird nur SQL-Server-Login (Benutzername/Passwort) unterstützt, keine Windows-Authentifizierung."/>
 
                 </Grid>
 

@@ -74,7 +74,15 @@ public class SerialDbContext : DbContext
         // Datensatzes wirkt wie "wurde von einem anderen Benutzer bearbeitet",
         // obwohl niemand sonst etwas geändert hat. Für SQLite setzt daher die
         // Anwendung selbst einen neuen Wert (siehe SaveChanges-Override unten).
-        if (Database.IsSqlite())
+        //
+        // SQL Server könnte hierfür einen echten "rowversion"/"timestamp"-
+        // Spaltentyp nutzen (automatisch, binär, serverseitig) - das würde
+        // aber einen anderen CLR-Typ (byte[] statt DateTime) für die
+        // RowVersion-Eigenschaft an Article/Machine erfordern und damit alle
+        // Stellen betreffen, die diese Eigenschaft lesen. Um das Verhalten
+        // provider-übergreifend identisch und risikoarm zu halten, wird SQL
+        // Server hier deshalb genau wie SQLite behandelt.
+        if (Database.IsSqlite() || Database.IsSqlServer())
         {
             modelBuilder.Entity<Article>()
                 .Property(a => a.RowVersion)
@@ -96,13 +104,14 @@ public class SerialDbContext : DbContext
         }
     }
 
-    // Siehe Kommentar in OnModelCreating: Bei SQLite gibt es keine
-    // serverseitige Generierung von RowVersion, deshalb setzt die Anwendung
-    // vor jedem Speichern selbst einen neuen Zeitstempel auf alle
-    // hinzugefügten/geänderten Artikel und Maschinen.
-    private void ApplySqliteRowVersionIfNeeded()
+    // Siehe Kommentar in OnModelCreating: Bei SQLite und SQL Server (siehe
+    // dort) gibt es keine automatisch verwendete serverseitige Generierung
+    // von RowVersion, deshalb setzt die Anwendung vor jedem Speichern selbst
+    // einen neuen Zeitstempel auf alle hinzugefügten/geänderten Artikel und
+    // Maschinen.
+    private void ApplyManualRowVersionIfNeeded()
     {
-        if (!Database.IsSqlite())
+        if (!Database.IsSqlite() && !Database.IsSqlServer())
             return;
 
         var now = DateTime.UtcNow;
@@ -122,13 +131,13 @@ public class SerialDbContext : DbContext
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        ApplySqliteRowVersionIfNeeded();
+        ApplyManualRowVersionIfNeeded();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override int SaveChanges()
     {
-        ApplySqliteRowVersionIfNeeded();
+        ApplyManualRowVersionIfNeeded();
         return base.SaveChanges();
     }
 
@@ -136,13 +145,13 @@ public class SerialDbContext : DbContext
         bool acceptAllChangesOnSuccess,
         CancellationToken cancellationToken = default)
     {
-        ApplySqliteRowVersionIfNeeded();
+        ApplyManualRowVersionIfNeeded();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        ApplySqliteRowVersionIfNeeded();
+        ApplyManualRowVersionIfNeeded();
         return base.SaveChangesAsync(cancellationToken);
     }
 }

@@ -29,7 +29,7 @@ public partial class MigrationAssistantWindow : Window
             {
                 lblStatus.Text =
                     "Dieser Assistent ist nur für MySQL-Datenbanken gedacht. " +
-                    "SQLite aktualisiert sein Schema automatisch beim Start.";
+                    "SQLite und SQL Server aktualisieren ihr Schema automatisch beim Start.";
                 btnRun.IsEnabled = false;
                 return;
             }

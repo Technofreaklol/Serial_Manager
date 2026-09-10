@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using MySqlConnector;
 using SerialManager.Data;
@@ -18,6 +19,17 @@ public class DatabaseInitializer
             if (config.Provider == "SQLite")
             {
                 message = "SQLite benötigt keinen Server.";
+                return true;
+            }
+
+            if (config.Provider == "MSSQL")
+            {
+                using var mssqlConn = new SqlConnection(
+                    DbContextFactory.BuildMsSqlServerOnlyConnectionString(config.MSSQL));
+
+                mssqlConn.Open();
+
+                message = $"Server erreichbar ({mssqlConn.ServerVersion}).";
                 return true;
             }
 
@@ -56,6 +68,28 @@ public class DatabaseInitializer
             if (config.Provider == "SQLite")
             {
                 message = "SQLite erstellt die Datenbank automatisch.";
+                return true;
+            }
+
+            if (config.Provider == "MSSQL")
+            {
+                using var mssqlConn = new SqlConnection(
+                    DbContextFactory.BuildMsSqlServerOnlyConnectionString(config.MSSQL));
+
+                mssqlConn.Open();
+
+                using var mssqlCmd = mssqlConn.CreateCommand();
+
+                // Kein Backtick-Escaping wie bei MySQL - T-SQL nutzt eckige
+                // Klammern und ein IF-NOT-EXISTS-Konstrukt statt "CREATE
+                // DATABASE IF NOT EXISTS" (das kennt SQL Server nicht).
+                mssqlCmd.CommandText =
+                    $"IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = '{config.MSSQL.Database}') " +
+                    $"CREATE DATABASE [{config.MSSQL.Database}];";
+
+                mssqlCmd.ExecuteNonQuery();
+
+                message = "Datenbank erfolgreich erstellt.";
                 return true;
             }
 
@@ -116,6 +150,23 @@ public class DatabaseInitializer
                 RepairSerialHistoryIndex(db);
 
                 message = "MySQL-Migration erfolgreich abgeschlossen.";
+
+                return true;
+            }
+
+            if (db.Database.IsSqlServer())
+            {
+                // Wie bei SQLite bewusst KEINE EF-Migrationen: Die vorhandenen
+                // Migrationsdateien wurden für MySQL erzeugt (MySQL-spezifische
+                // Spaltentypen/Annotationen) und passen nicht 1:1 zu SQL Server.
+                // EnsureCreated() erzeugt das Schema stattdessen direkt aus dem
+                // aktuellen Modell (siehe SerialDbContext), plus ein manuelles
+                // Sicherheitsnetz für bereits bestehende (ältere) Datenbanken.
+                db.Database.EnsureCreated();
+                EnsureCoreTablesMsSql(db);
+                RepairSerialHistoryIndex(db);
+
+                message = "SQL-Server-Datenbank erfolgreich erstellt/aktualisiert.";
 
                 return true;
             }
@@ -327,6 +378,115 @@ public class DatabaseInitializer
             connection.Close();
         }
     }
+    private static void EnsureCoreTablesMsSql(SerialDbContext db)
+    {
+        if (!db.Database.IsSqlServer())
+            return;
+
+        // Gleiches Sicherheitsnetz wie EnsureCoreTablesMySql: Tabellen/Spalten
+        // direkt und unabhängig vom EF-Modellstand prüfen/anlegen, statt uns
+        // allein auf EnsureCreated() (das bestehende Tabellen nicht anpasst)
+        // zu verlassen. T-SQL kennt kein "CREATE TABLE IF NOT EXISTS" - das
+        // wird hier über IF OBJECT_ID(...) IS NULL nachgebildet.
+
+        db.Database.ExecuteSqlRaw(@"
+            IF OBJECT_ID(N'dbo.Articles', N'U') IS NULL
+            CREATE TABLE [dbo].[Articles] (
+                [Id] int NOT NULL IDENTITY(1,1),
+                [ArticleNumber] nvarchar(450) NOT NULL,
+                [Description] nvarchar(max) NOT NULL,
+                [CurrentSerialNumber] int NOT NULL,
+                [RowVersion] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                [IsActive] bit NOT NULL DEFAULT 1,
+                CONSTRAINT [PK_Articles] PRIMARY KEY ([Id]),
+                CONSTRAINT [IX_Articles_ArticleNumber] UNIQUE ([ArticleNumber])
+            );");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF OBJECT_ID(N'dbo.Machines', N'U') IS NULL
+            CREATE TABLE [dbo].[Machines] (
+                [Id] int NOT NULL IDENTITY(1,1),
+                [Name] nvarchar(450) NOT NULL,
+                [RowVersion] datetime2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                CONSTRAINT [PK_Machines] PRIMARY KEY ([Id]),
+                CONSTRAINT [IX_Machines_Name] UNIQUE ([Name])
+            );");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF OBJECT_ID(N'dbo.SerialHistories', N'U') IS NULL
+            CREATE TABLE [dbo].[SerialHistories] (
+                [Id] int NOT NULL IDENTITY(1,1),
+                [ArticleNumber] nvarchar(450) NOT NULL,
+                [SerialNumber] nvarchar(450) NOT NULL,
+                [Created] datetime2 NOT NULL,
+                [Machine] nvarchar(max) NOT NULL,
+                [Operator] nvarchar(max) NOT NULL,
+                [Remark] nvarchar(max) NULL,
+                [LabelPrinted] bit NOT NULL,
+                CONSTRAINT [PK_SerialHistories] PRIMARY KEY ([Id]),
+                CONSTRAINT [IX_SerialHistories_ArticleNumber_SerialNumber]
+                    UNIQUE ([ArticleNumber], [SerialNumber])
+            );");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF OBJECT_ID(N'dbo.Settings', N'U') IS NULL
+            CREATE TABLE [dbo].[Settings] (
+                [Id] int NOT NULL IDENTITY(1,1),
+                [Key] nvarchar(450) NOT NULL,
+                [Value] nvarchar(max) NOT NULL,
+                CONSTRAINT [PK_Settings] PRIMARY KEY ([Id]),
+                CONSTRAINT [IX_Settings_Key] UNIQUE ([Key])
+            );");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF OBJECT_ID(N'dbo.Users', N'U') IS NULL
+            CREATE TABLE [dbo].[Users] (
+                [Id] int NOT NULL IDENTITY(1,1),
+                [Username] nvarchar(450) NOT NULL,
+                [PasswordHash] nvarchar(max) NOT NULL,
+                [FullName] nvarchar(max) NOT NULL,
+                [Role] nvarchar(450) NOT NULL,
+                [IsActive] bit NOT NULL,
+                [Created] datetime2 NOT NULL,
+                [LastLogin] datetime2 NULL,
+                CONSTRAINT [PK_Users] PRIMARY KEY ([Id]),
+                CONSTRAINT [IX_Users_Username] UNIQUE ([Username])
+            );");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF OBJECT_ID(N'dbo.AuditLogEntries', N'U') IS NULL
+            CREATE TABLE [dbo].[AuditLogEntries] (
+                [Id] int NOT NULL IDENTITY(1,1),
+                [Created] datetime2 NOT NULL,
+                [Username] nvarchar(450) NOT NULL,
+                [Action] nvarchar(450) NOT NULL,
+                [Details] nvarchar(max) NOT NULL,
+                CONSTRAINT [PK_AuditLogEntries] PRIMARY KEY ([Id])
+            );");
+
+        // Falls Articles/Machines schon vor Einführung von IsActive/RowVersion
+        // existierten (analog zum MySQL-Zweig oben).
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (
+                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'Articles' AND COLUMN_NAME = 'IsActive')
+            ALTER TABLE [dbo].[Articles] ADD [IsActive] bit NOT NULL DEFAULT 1;");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (
+                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'Articles' AND COLUMN_NAME = 'RowVersion')
+            ALTER TABLE [dbo].[Articles] ADD [RowVersion] datetime2 NOT NULL
+                DEFAULT SYSUTCDATETIME();");
+
+        db.Database.ExecuteSqlRaw(@"
+            IF NOT EXISTS (
+                SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'Machines' AND COLUMN_NAME = 'RowVersion')
+            ALTER TABLE [dbo].[Machines] ADD [RowVersion] datetime2 NOT NULL
+                DEFAULT SYSUTCDATETIME();");
+    }
+
     private static void RepairSerialHistoryIndex(SerialDbContext db)
     {
         // Frühe Versionen hatten SerialNumber allein als UNIQUE-Index.
@@ -378,6 +538,49 @@ public class DatabaseInitializer
                 catch (MySqlConnector.MySqlException ex) when (ex.Number == 1061)
                 {
                     // Der korrekte Index existiert bereits.
+                }
+            }
+            finally
+            {
+                connection.Close();
+            }
+
+            return;
+        }
+
+        if (db.Database.IsSqlServer())
+        {
+            var connection = db.Database.GetDbConnection();
+            connection.Open();
+
+            try
+            {
+                using var check = connection.CreateCommand();
+                check.CommandText = @"SELECT COUNT(*) FROM sys.indexes
+                                      WHERE object_id = OBJECT_ID('dbo.SerialHistories')
+                                        AND name = 'IX_SerialHistories_SerialNumber';";
+
+                var exists = Convert.ToInt32(check.ExecuteScalar()) > 0;
+
+                if (exists)
+                {
+                    using var drop = connection.CreateCommand();
+                    drop.CommandText =
+                        "DROP INDEX [IX_SerialHistories_SerialNumber] ON [dbo].[SerialHistories];";
+                    drop.ExecuteNonQuery();
+                }
+
+                using var checkNew = connection.CreateCommand();
+                checkNew.CommandText = @"SELECT COUNT(*) FROM sys.indexes
+                                         WHERE object_id = OBJECT_ID('dbo.SerialHistories')
+                                           AND name = 'IX_SerialHistories_ArticleNumber_SerialNumber';";
+
+                if (Convert.ToInt32(checkNew.ExecuteScalar()) == 0)
+                {
+                    using var create = connection.CreateCommand();
+                    create.CommandText = @"CREATE UNIQUE INDEX [IX_SerialHistories_ArticleNumber_SerialNumber]
+                                           ON [dbo].[SerialHistories] ([ArticleNumber], [SerialNumber]);";
+                    create.ExecuteNonQuery();
                 }
             }
             finally
@@ -438,6 +641,25 @@ public class DatabaseInitializer
         {
             message = "SQLite";
             return true;
+        }
+
+        if (config.Provider == "MSSQL")
+        {
+            try
+            {
+                using var conn = new SqlConnection(
+                    DbContextFactory.BuildMsSqlConnectionString(config.MSSQL));
+
+                conn.Open();
+
+                message = "Verbindung erfolgreich.";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                return false;
+            }
         }
 
         try

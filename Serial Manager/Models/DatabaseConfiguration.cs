@@ -7,4 +7,6 @@ public class DatabaseConfiguration
     public SQLiteConfiguration SQLite { get; set; } = new();
 
     public MySqlConfiguration MySQL { get; set; } = new();
+
+    public MsSqlConfiguration MSSQL { get; set; } = new();
 }

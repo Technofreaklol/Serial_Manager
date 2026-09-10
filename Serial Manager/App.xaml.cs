@@ -179,8 +179,10 @@ public partial class App : Application
             // -----------------------------------------------------
             splash.Hide();
 
+            var configForError = new DatabaseConfigurationService().Load();
+
             var result = MessageBox.Show(
-                $"Die MySQL-Datenbank konnte nicht erreicht werden.\n\n" +
+                $"Die {configForError.Provider}-Datenbank konnte nicht erreicht werden.\n\n" +
                 $"{databaseCheck.Message}\n\n" +
                 "Ja = Datenbankeinstellungen öffnen\n" +
                 "Nein = Mit SQLite starten\n" +
@@ -351,9 +353,17 @@ public partial class App : Application
         var config = new DatabaseConfigurationService().Load();
         var initializer = new DatabaseInitializer();
 
-        if (config.Provider == "SQLite")
+        if (config.Provider == "SQLite" || config.Provider == "MSSQL")
         {
-            splash.SetStatus("SQLite-Datenbank wird vorbereitet …");
+            // Beide nutzen bewusst keine EF-Migrationen (siehe
+            // DatabaseInitializer), sondern EnsureCreated() + eigene
+            // Sicherheitsnetz-Prüfungen. GetPendingMigrations() weiter unten
+            // würde hier fälschlich IMMER "Reparatur nötig" melden und bei
+            // JEDEM Start ein Backup anstoßen - deshalb hier direkt und ohne
+            // Migrationsverlauf initialisieren, wie bei SQLite.
+            splash.SetStatus(config.Provider == "SQLite"
+                ? "SQLite-Datenbank wird vorbereitet …"
+                : "SQL-Server-Datenbank wird vorbereitet …");
 
             await Dispatcher.InvokeAsync(
                 () => { },

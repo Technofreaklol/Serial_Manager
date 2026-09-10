@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.IO;
+using SerialManager.Models;
 using SerialManager.Services;
 
 namespace SerialManager.Data;
@@ -39,6 +40,12 @@ public static class DbContextFactory
                     break;
                 }
 
+            case "MSSQL":
+                {
+                    builder.UseSqlServer(BuildMsSqlConnectionString(config.MSSQL));
+                    break;
+                }
+
             case "SQLite":
             default:
                 {
@@ -51,5 +58,40 @@ public static class DbContextFactory
         }
 
         return new SerialDbContext(builder.Options);
+    }
+
+    // Wird auch von DatabaseInitializer/BackupService für direkte
+    // ADO.NET-Verbindungen (SqlConnection) verwendet, damit der
+    // Verbindungsstring nur an einer Stelle gepflegt werden muss.
+    //
+    // TrustServerCertificate=True ist bei lokalen/firmeninternen SQL-
+    // Server-Instanzen ohne "echtes" (von einer öffentlichen CA
+    // signiertes) TLS-Zertifikat notwendig - ohne diese Option lehnt
+    // Microsoft.Data.SqlClient die Verbindung standardmäßig ab
+    // (Encrypt=True ist seit Version 3 Standard).
+    public static string BuildMsSqlConnectionString(MsSqlConfiguration config)
+    {
+        string server = config.Port > 0
+            ? $"{config.Server},{config.Port}"
+            : config.Server;
+
+        return $"Server={server};Database={config.Database};" +
+               $"User Id={config.Username};Password={config.Password};" +
+               "TrustServerCertificate=True;";
+    }
+
+    // Wie oben, aber ohne "Database=" - zum Prüfen der reinen
+    // Servererreichbarkeit bzw. zum Anlegen der Datenbank, bevor sie
+    // überhaupt existiert (siehe DatabaseInitializer.TestServer/
+    // CreateDatabase).
+    public static string BuildMsSqlServerOnlyConnectionString(MsSqlConfiguration config)
+    {
+        string server = config.Port > 0
+            ? $"{config.Server},{config.Port}"
+            : config.Server;
+
+        return $"Server={server};" +
+               $"User Id={config.Username};Password={config.Password};" +
+               "TrustServerCertificate=True;";
     }
 }
