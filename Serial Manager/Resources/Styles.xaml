@@ -5,12 +5,16 @@
     <!-- Farben -->
     <SolidColorBrush x:Key="PrimaryBrush" Color="#1976D2"/>
     <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#1565C0"/>
+    <!-- Fallback, bis ThemeService beim Start (oder beim ersten Speichern in
+         den Einstellungen) die zur jeweiligen Button-Farbe passende, gut
+         lesbare Textfarbe einsetzt. -->
+    <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="White"/>
     <SolidColorBrush x:Key="BackgroundBrush" Color="#F5F5F5"/>
 
     <!-- Fenster -->
     <Style TargetType="Window">
         <Setter Property="Background" Value="{StaticResource BackgroundBrush}"/>
-        
+
         <Setter Property="FontFamily" Value="Segoe UI"/>
         <Setter Property="FontSize" Value="14"/>
         <Setter Property="Icon" Value="/Assets/Logo.ico"/>
@@ -18,14 +22,65 @@
     </Style>
 
     <!-- Buttons -->
+    <!-- WICHTIG: DynamicResource statt StaticResource für Background/BorderBrush.
+         StaticResource würde den Farbwert beim Laden dieses Stils EINMALIG fest
+         einbrennen - ein späterer Austausch von PrimaryBrush/PrimaryDarkBrush
+         (z. B. durch die Einstellung "Button-Farbe") hätte dann nie eine
+         Wirkung, weder auf neue noch auf bereits offene Fenster. DynamicResource
+         löst den Verweis dagegen bei jeder Änderung neu auf und aktualisiert
+         alle Buttons sofort, auch in bereits geöffneten Fenstern.
+
+         Außerdem bekommt der Button ein eigenes ControlTemplate: Das
+         Standard-Windows-Template zeichnet beim Hover einen eigenen,
+         systemfarbenen Überzug, der unseren Background-Wert ignoriert -
+         dadurch würde der Hover-Effekt immer gleich (Windows-Standardfarbe)
+         aussehen, egal welche Button-Farbe gewählt wurde. Mit einem eigenen,
+         einfachen Template (Border + Text) steuern wir Normal-/Hover-/
+         Pressed-/Disabled-Zustand selbst und können so PrimaryDarkBrush
+         zuverlässig als Hover-Farbe verwenden. -->
     <Style TargetType="Button">
         <Setter Property="Height" Value="36"/>
         <Setter Property="Padding" Value="15,5"/>
         <Setter Property="Margin" Value="4"/>
-        <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
-        <Setter Property="Foreground" Value="White"/>
-        <Setter Property="BorderBrush" Value="{StaticResource PrimaryDarkBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource PrimaryForegroundBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource PrimaryDarkBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          Margin="{TemplateBinding Padding}"
+                                          RecognizesAccessKey="True"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- Hover: etwas dunklere Variante der aktuell gewählten
+                             Farbe. PrimaryDarkBrush wird vom ThemeService immer
+                             automatisch als leicht abgedunkelte Version von
+                             PrimaryBrush berechnet - so bleibt der Hover-Effekt
+                             auch bei einer selbst gewählten Button-Farbe
+                             stimmig. -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource PrimaryDarkBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="{DynamicResource PrimaryDarkBrush}"/>
+                            <Setter TargetName="border" Property="Opacity" Value="0.85"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <!-- GroupBox -->

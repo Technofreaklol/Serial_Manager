@@ -1,95 +1,114 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <RootNamespace>SerialManager</RootNamespace>
-	<AssemblyName>SerialManager</AssemblyName>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-	<Version>1.1.5</Version>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<RootNamespace>SerialManager</RootNamespace>
+		<AssemblyName>SerialManager</AssemblyName>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+		<!-- Wird nur für den nativen Windows-Farbauswahldialog (System.Windows.Forms.ColorDialog)
+         in der Button-Farben-Einstellung benötigt. -->
+		<UseWindowsForms>true</UseWindowsForms>
+		<!-- Bei aktiviertem ImplicitUsings fügt UseWindowsForms automatisch globale
+         "using System.Drawing;" / "using System.Windows.Forms;" in JEDE Datei
+         des Projekts ein. Das kollidiert mit WPF (System.Windows.Media), da
+         beide Typen wie Color, Point, Rectangle, Brush usw. definieren - daher
+         überall "66 Fehler" mit mehrdeutigen Bezeichnern. Die beiden
+         automatischen Usings werden hier deaktiviert; der Farbauswahl-Dialog im
+         Code (SettingsWindow.xaml.cs) verwendet ohnehin ausgeschriebene Namen
+         (System.Windows.Forms.ColorDialog, System.Drawing.Color) und braucht
+         sie nicht.-->
+		<Version>1.1.6</Version>
 
-    <!-- Self-contained Single-File EXE -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <DebugType>None</DebugType>
-    <PublishTrimmed>false</PublishTrimmed>
-    <ApplicationIcon>Assets\Logo.ico</ApplicationIcon>
-    <Copyright>Nikolai Hieber</Copyright>
-    <PackageProjectUrl>https://www.hieber.me</PackageProjectUrl>
+		<!-- Self-contained Single-File EXE -->
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<SelfContained>true</SelfContained>
+		<PublishSingleFile>true</PublishSingleFile>
+		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+		<DebugType>None</DebugType>
+		<PublishTrimmed>false</PublishTrimmed>
+		<ApplicationIcon>Assets\Logo.ico</ApplicationIcon>
+		<Copyright>Nikolai Hieber</Copyright>
+		<PackageProjectUrl>https://www.hieber.me</PackageProjectUrl>
 
-    <!-- Velopack benötigt einen eigenen Main()-Einstiegspunkt (siehe App.xaml.cs),
+		<!-- Velopack benötigt einen eigenen Main()-Einstiegspunkt (siehe App.xaml.cs),
          daher übernimmt App.xaml nicht mehr automatisch die Rolle als
          ApplicationDefinition/StartupObject. -->
-    <StartupObject>SerialManager.App</StartupObject>
-  </PropertyGroup>
+		<StartupObject>SerialManager.App</StartupObject>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <!-- Von Velopack benötigt: eigener Main()-Einstiegspunkt statt des
+	<ItemGroup>
+		<!-- Von Velopack benötigt: eigener Main()-Einstiegspunkt statt des
          automatisch generierten WPF-Einstiegspunkts. -->
-    <ApplicationDefinition Remove="App.xaml" />
-    <Page Include="App.xaml" />
-  </ItemGroup>
+		<ApplicationDefinition Remove="App.xaml" />
+		<Page Include="App.xaml" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Remove="Assets\Logo.ico" />
-    <None Remove="Assets\Logo.png" />
-    <None Remove="Views\favicon-32x32.png" />
-  </ItemGroup>
+	<ItemGroup>
+		<!-- Siehe Kommentar bei UseWindowsForms oben: verhindert die mehrdeutigen
+         Color/Point/Rectangle/Brush-Fehler in allen WPF-Dateien. -->
+		<Using Remove="System.Drawing" />
+		<Using Remove="System.Windows.Forms" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Content Include="Assets\Logo.ico" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Remove="Assets\Logo.ico" />
+		<None Remove="Assets\Logo.png" />
+		<None Remove="Views\favicon-32x32.png" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Helpers\" />
-    <Folder Include="Printing\" />
-    <Folder Include="Repositories\" />
-    <Folder Include="Resources\Icons\" />
-    <Folder Include="ViewModels\" />
-  </ItemGroup>
+	<ItemGroup>
+		<Content Include="Assets\Logo.ico" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.26">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.26" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.26">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.9" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.26" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
-    <PackageReference Include="QRCoder" Version="1.8.0" />
-    <PackageReference Include="Velopack" Version="1.2.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<Folder Include="Helpers\" />
+		<Folder Include="Printing\" />
+		<Folder Include="Repositories\" />
+		<Folder Include="Resources\Icons\" />
+		<Folder Include="ViewModels\" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Resource Include="Assets\Logo.ico">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Resource>
-    <Resource Include="Assets\Logo.png" />
-    <Resource Include="Assets\icon.png">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Resource>
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.26">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.26" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.26">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.9" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.26" />
+		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
+		<PackageReference Include="QRCoder" Version="1.8.0" />
+		<PackageReference Include="Velopack" Version="1.2.0" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Page Update="Resources\Colors.xaml">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Page>
-    <Page Update="Resources\Styles.xaml">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Page>
-  </ItemGroup>
+	<ItemGroup>
+		<Resource Include="Assets\Logo.ico">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Assets\Logo.png" />
+		<Resource Include="Assets\icon.png">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		</Resource>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Page Update="Resources\Colors.xaml">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		</Page>
+		<Page Update="Resources\Styles.xaml">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+		</Page>
+	</ItemGroup>
 
 </Project>

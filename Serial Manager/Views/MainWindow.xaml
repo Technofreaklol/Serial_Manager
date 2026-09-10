@@ -282,9 +282,6 @@ Click="MenuResetSerial_Click"/>
         Height="55"
         FontSize="18"
         FontWeight="Bold"
-        Background="#1976D2"
-        Foreground="White"
-        BorderBrush="#1976D2"
         Cursor="Hand"
         Content="Seriennummer erzeugen"
 

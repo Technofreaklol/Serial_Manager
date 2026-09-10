@@ -537,6 +537,11 @@ public partial class App : Application
                     // Backupfehler ignorieren
                 }
             }
+
+            // Button-Farbe: VOR dem ersten sichtbaren Fenster (Login etc.)
+            // anwenden, damit die vom Benutzer gewählte Farbe von Anfang an
+            // überall greift, nicht erst nach dem Öffnen der Einstellungen.
+            ThemeService.ApplyPersistedButtonColor();
         }
         catch (Exception ex)
         {
