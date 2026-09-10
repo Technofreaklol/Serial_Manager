@@ -16,7 +16,7 @@ public partial class SettingsWindow : Window
     private static readonly string[] ColorPresets =
     {
         ThemeService.DefaultButtonColorHex, // Blau (Standard)
-        "#2E7D32", // Grün
+        "#E32D8C", // Pink
         "#C62828", // Rot
         "#F57C00", // Orange
         "#6A1B9A", // Lila
