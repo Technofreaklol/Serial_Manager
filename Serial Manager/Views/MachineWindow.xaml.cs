@@ -112,4 +112,10 @@ public partial class MachineWindow : Window
         _selectedMachine = machine;
         txtMachine.Text = machine.Name;
     }
+
+    private void New_Click(object sender, RoutedEventArgs e)
+    {
+        LoadMachines();
+        ClearForm();
+    }
 }
