@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-	<Version>1.1.4</Version>
+	<Version>1.1.5</Version>
 
     <!-- Self-contained Single-File EXE -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
