@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# Setzt nach jedem Commit automatisch einen lokalen Git-Tag mit der aktuellen
+# Versionsnummer aus der .csproj (z. B. v1.0.10) - passend zu der Version,
+# die der pre-commit-Hook direkt vorher in der .csproj erhöht hat.
+#
+# Wird über dieselbe Einstellung wie pre-commit aktiviert (einmalig pro Klon):
+#   git config core.hooksPath .githooks
+
+CSPROJ="Serial Manager/Serial Manager.csproj"
+
+if [ ! -f "$CSPROJ" ]; then
+    exit 0
+fi
+
+CURRENT=$(grep -oE '<Version>[0-9]+\.[0-9]+\.[0-9]+</Version>' "$CSPROJ" | head -n 1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+
+if [ -z "$CURRENT" ]; then
+    exit 0
+fi
+
+TAG="v$CURRENT"
+
+# Falls der Tag schon existiert (z. B. weil pre-commit mit --no-verify
+# übersprungen wurde und sich die Version nicht geändert hat), nichts tun -
+# der Commit selbst soll dadurch nie fehlschlagen.
+if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+    echo "post-commit: Tag '$TAG' existiert bereits - überspringe."
+    exit 0
+fi
+
+git tag "$TAG"
+
+echo "post-commit: Tag '$TAG' erstellt (nur lokal)."
+echo "post-commit: Zum Hochladen auf den Remote: git push origin $TAG"
+
+exit 0
