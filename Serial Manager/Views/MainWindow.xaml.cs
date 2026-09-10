@@ -168,24 +168,15 @@ public partial class MainWindow : Window
             return;
 
         // Nach der Auswahl soll im Textfeld nicht nur die Artikelnummer
-        // stehen, sondern wie in der Dropdown-Liste auch die Beschreibung.
-        // Wichtig: WPF setzt den Text der editierbaren ComboBox wegen
-        // "TextSearch.TextPath=ArticleNumber" im Rahmen der Selektions-
-        // verarbeitung SELBST auf die Artikelnummer - das kann direkt in
-        // diesem Event-Handler gesetzten Text wieder überschreiben. Daher
-        // wird der gewünschte Text erst NACH dieser internen Verarbeitung
-        // gesetzt (Dispatcher, niedrigere Priorität).
-        var displayText = $"{article.ArticleNumber} - {article.Description}";
-        Dispatcher.BeginInvoke(
-            DispatcherPriority.Background,
-            new Action(() =>
-            {
-                _suppressTextChanged = true;
-                cmbArticles.Text = displayText;
-                if (cmbArticles.Template?.FindName("PART_EditableTextBox", cmbArticles) is TextBox editableTextBox)
-                    editableTextBox.CaretIndex = editableTextBox.Text.Length;
-                _suppressTextChanged = false;
-            }));
+        // stehen (das würde sonst "TextSearch.TextPath=ArticleNumber"
+        // automatisch so setzen), sondern wie in der Dropdown-Liste auch
+        // die Beschreibung. _suppressTextChanged verhindert dabei, dass
+        // dieses Setzen selbst wieder die Live-Filterung auslöst.
+        _suppressTextChanged = true;
+        cmbArticles.Text = $"{article.ArticleNumber} - {article.Description}";
+        if (cmbArticles.Template?.FindName("PART_EditableTextBox", cmbArticles) is TextBox editableTextBox)
+            editableTextBox.CaretIndex = editableTextBox.Text.Length;
+        _suppressTextChanged = false;
 
         lblDescription.Text = article.Description;
 
@@ -700,13 +691,21 @@ public partial class MainWindow : Window
     {
         Hide();
 
+        // Bereits abgemeldet: Solange keine neue, erfolgreiche Anmeldung
+        // stattgefunden hat, darf der vorherige (bereits abgemeldete)
+        // Benutzer keinesfalls wieder Zugriff auf das Hauptfenster
+        // bekommen - das würde die Anmeldung faktisch aushebeln, wenn man
+        // das Login-Fenster einfach schließt/abbricht.
+        CurrentSession.CurrentUser = null;
+
         var login = new LoginWindow();
 
         if (login.ShowDialog() != true)
         {
-            // Ohne neue Anmeldung: Hauptfenster wieder anzeigen,
-            // damit der Benutzer nicht ohne jedes Fenster dasteht.
-            Show();
+            // Ohne neue Anmeldung wird die Anwendung beendet, genau wie
+            // beim Abbrechen der Anmeldung direkt beim Programmstart
+            // (siehe App.xaml.cs) - nicht das Hauptfenster erneut anzeigen.
+            Application.Current.Shutdown();
             return;
         }
 
