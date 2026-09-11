@@ -4,8 +4,8 @@
         Title="Etikettenvorschau"
         Height="470"
         Width="700"
-        ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner">
+        WindowStartupLocation="CenterOwner"
+        Background="#DDDDDD">
     <Grid>
 
         <Grid.RowDefinitions>
@@ -13,123 +13,43 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition x:Name="colQr" Width="243" />
-        </Grid.ColumnDefinitions>
-
-        <!-- Linke Seite -->
-        <StackPanel Grid.Row="0"
-                    Margin="10,10,10,10">
-
-            <Image x:Name="imgLogo"
-                   MaxHeight="50"
-                   HorizontalAlignment="Left"
-                   Margin="0,0,0,8"
-                   Stretch="Uniform"/>
-
-            <TextBlock x:Name="lblCompany"
-                   FontSize="20"
-                   FontWeight="Bold"
-                   Foreground="#1976D2"/>
-
-            <Separator Margin="0,8"/>
-
-            <StackPanel x:Name="panelArticle">
-                <TextBlock Text="Artikel"
-                       FontWeight="Bold"/>
-
-                <TextBlock x:Name="lblArticle"
-                       Margin="0,0,0,8"/>
-            </StackPanel>
-
-            <StackPanel x:Name="panelDescription">
-                <TextBlock Text="Beschreibung"
-                       FontWeight="Bold"/>
-
-                <TextBlock x:Name="lblDescription"
-                       TextWrapping="Wrap"
-                       Margin="0,0,0,8"/>
-            </StackPanel>
-
-            <StackPanel x:Name="panelSerial">
-                <TextBlock Text="Seriennummer"
-                       FontWeight="Bold"/>
-
-                <Border
-                    CornerRadius="5"
-                    Padding="8"
-                    Margin="0,2,0,8" Background="{DynamicResource PrimaryBrush}">
-
-                    <TextBlock x:Name="lblSerial"
-                           FontSize="26"
-                           FontWeight="Bold"
-                           Foreground="White"
-                           HorizontalAlignment="Center"/>
-
-                </Border>
-            </StackPanel>
-
-            <StackPanel x:Name="panelMachine">
-                <TextBlock Text="Maschine"
-                       FontWeight="Bold"/>
-
-                <TextBlock x:Name="lblMachine"
-                       Margin="0,0,0,8"/>
-            </StackPanel>
-
-            <StackPanel x:Name="panelDate">
-                <TextBlock Text="Datum"
-                       FontWeight="Bold"/>
-
-                <TextBlock x:Name="lblDate"
-                       Margin="0,0,0,8"/>
-            </StackPanel>
-
-            <StackPanel x:Name="panelOperator">
-                <TextBlock Text="Bearbeiter"
-                       FontWeight="Bold"/>
-
-                <TextBlock x:Name="lblOperator"/>
-            </StackPanel>
-
-        </StackPanel>
-
-        <!-- Rechte Seite -->
-        <StackPanel x:Name="panelQr"
-                Grid.Row="0"
-                Grid.Column="1"
+        <!-- Zeigt exakt dasselbe Visual, das PrinterService beim
+             tatsächlichen Drucken erzeugt (siehe PrinterService.CreateVisual,
+             aufgerufen in LabelPreviewWindow.xaml.cs) - nur zusätzlich mit
+             einer Viewbox auf Bildschirmgröße skaliert, statt wie bisher eine
+             eigene, unabhängige Nachbildung des Layouts zu zeigen. Damit
+             stimmt die Vorschau am Bildschirm mit dem späteren Ausdruck
+             überein (Größe, Skalierung, Schriftgrößen, Seitenverhältnis,
+             Anordnung). -->
+        <Border Grid.Row="0"
+                Margin="20"
+                Background="White"
+                BorderBrush="#999999"
+                BorderThickness="1"
                 HorizontalAlignment="Center"
-                VerticalAlignment="Center" Height="178" Width="150">
+                VerticalAlignment="Center">
 
-            <Image x:Name="imgQrCode"
-               Width="150"
-               Height="150"
-               Stretch="Uniform"/>
+            <Viewbox x:Name="previewViewbox"
+                     Stretch="Uniform"
+                     MaxWidth="620"
+                     MaxHeight="340"/>
 
-            <TextBlock Text="QR-Code"
-                   Margin="0,10,0,0"
-                   HorizontalAlignment="Center"
-                   FontWeight="Bold"/>
-
-        </StackPanel>
+        </Border>
 
         <!-- Buttons -->
         <StackPanel Grid.Row="1"
-                    Grid.Column="0"
-                    Grid.ColumnSpan="2"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     Margin="10,0,10,10">
 
             <Button Width="120"
                     Content="Drucken"
-                    Click="Print_Click" Background="{DynamicResource PrimaryBrush}"/>
+                    Click="Print_Click"/>
 
             <Button Width="120"
                     Margin="10,0,0,0"
                     Content="Schlie&#223;en"
-                    Click="Close_Click" Background="{DynamicResource PrimaryBrush}"/>
+                    Click="Close_Click"/>
 
         </StackPanel>
 

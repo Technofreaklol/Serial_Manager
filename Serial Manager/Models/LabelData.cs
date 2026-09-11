@@ -56,5 +56,5 @@ public class LabelData
         "&Maschine=" + Uri.EscapeDataString(Machine) +
         "&Firma=" + Uri.EscapeDataString(CompanyName) +
         "&Beschreibung=" + Uri.EscapeDataString(Description) +
-        "&Datum=" + Uri.EscapeDataString(Created.ToString("dd.MM.yyyy HH:mm"));
+        "&Datum=" + Uri.EscapeDataString(Created.ToString("dd.MM.yyyy"));
 }
