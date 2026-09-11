@@ -56,10 +56,38 @@ public class PrinterService
             // gesamten Druckvorgang abzubrechen.
         }
 
+        // Jeder Drucker hat einen nicht bedruckbaren Rand (Hardware-Rand des
+        // Druckkopfs) - die bedruckbare Fläche beginnt deshalb NICHT bei
+        // (0,0) der physischen Seite, sondern etwas versetzt davon. Ohne
+        // diesen Versatz würde unser Etikett genau im linken/oberen
+        // Rand-Bereich beginnen und dort vom Drucker abgeschnitten - genau
+        // das war das gemeldete Problem ("wird links abgeschnitten").
+        // PrintCapabilities.PageImageableArea liefert diesen Versatz
+        // (OriginWidth/OriginHeight); ist er nicht ermittelbar, wird
+        // ersatzweise ohne Versatz gedruckt statt den Druck abzubrechen.
+        double originX = 0;
+        double originY = 0;
+
+        try
+        {
+            var capabilities = dialog.PrintQueue.GetPrintCapabilities(dialog.PrintTicket);
+
+            if (capabilities.PageImageableArea != null)
+            {
+                originX = capabilities.PageImageableArea.OriginWidth;
+                originY = capabilities.PageImageableArea.OriginHeight;
+            }
+        }
+        catch
+        {
+            // Treiber liefert keine Fähigkeiten-Informationen - ohne Versatz
+            // weiterdrucken statt abzubrechen.
+        }
+
         var visual = BuildPrintVisual(label, widthDiu, heightDiu);
 
         visual.Measure(new Size(widthDiu, heightDiu));
-        visual.Arrange(new Rect(0, 0, widthDiu, heightDiu));
+        visual.Arrange(new Rect(originX, originY, widthDiu, heightDiu));
         visual.UpdateLayout();
 
         dialog.PrintVisual(visual, $"Etikett {label.SerialNumber}");
