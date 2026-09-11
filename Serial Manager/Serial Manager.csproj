@@ -20,7 +20,7 @@
          Code (SettingsWindow.xaml.cs) verwendet ohnehin ausgeschriebene Namen
          (System.Windows.Forms.ColorDialog, System.Drawing.Color) und braucht
          sie nicht.-->
-		<Version>1.1.8</Version>
+		<Version>1.1.9</Version>
 
 		<!-- Self-contained Single-File EXE -->
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
