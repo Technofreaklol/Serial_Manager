@@ -76,7 +76,12 @@ public class PrinterService
         {
             Width = widthDiu,
             Height = heightDiu,
-            Background = Brushes.White
+            Background = Brushes.White,
+            // Sicherheitsnetz: falls der Inhalt trotz Schrumpfen unten noch
+            // nicht ganz passt (siehe ShrinkToFit unten), lieber sauber am
+            // Etikettenrand abschneiden als über den Rand hinaus auf das
+            // nächste Etikett "bluten" zu lassen.
+            ClipToBounds = true
         };
 
         grid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition
@@ -97,11 +102,76 @@ public class PrinterService
             });
         }
 
-        var contentPanel = new System.Windows.Controls.StackPanel
+        double contentColumnWidth = showQr
+            ? Math.Max(10, widthDiu - qrSize - margin)
+            : widthDiu;
+
+        // Passt die Schriftgröße (und damit alles andere, was proportional
+        // dazu skaliert) so lange nach unten an, bis der Inhalt tatsächlich
+        // in die konfigurierte Etikettenhöhe passt - bei vielen aktivierten
+        // Feldern (Logo + Firmenname + 6 Felder) auf einem kleinen Etikett
+        // reicht der anfängliche, nur an der Höhe ausgerichtete Skalierungs-
+        // faktor sonst nicht aus und der untere Teil (z. B. "Datum") würde
+        // sonst über den Etikettenrand hinaus- und damit abgeschnitten
+        // werden.
+        var contentPanel = BuildContentPanel(label, scale, accentBrush);
+        contentPanel.Margin = new Thickness(margin);
+
+        contentPanel.Measure(new Size(contentColumnWidth, double.PositiveInfinity));
+
+        if (contentPanel.DesiredSize.Height > heightDiu && contentPanel.DesiredSize.Height > 0)
         {
-            Margin = new Thickness(margin),
-            VerticalAlignment = VerticalAlignment.Center
-        };
+            // Kleiner Sicherheitsabschlag (3%), damit nach dem Neu-Aufbau mit
+            // der kleineren Schrift nicht durch Rundung/Zeilenumbrüche exakt
+            // wieder an der Kante gedruckt wird.
+            double shrinkFactor = heightDiu / contentPanel.DesiredSize.Height * 0.97;
+
+            scale = Math.Max(0.15, scale * shrinkFactor);
+
+            contentPanel = BuildContentPanel(label, scale, accentBrush);
+            contentPanel.Margin = new Thickness(margin);
+        }
+
+        contentPanel.VerticalAlignment = VerticalAlignment.Center;
+
+        System.Windows.Controls.Grid.SetColumn(contentPanel, 0);
+        grid.Children.Add(contentPanel);
+
+        if (showQr)
+        {
+            var qrImage = BuildQrImage(label.QrContent);
+
+            var qrBorder = new System.Windows.Controls.Border
+            {
+                Width = qrSize,
+                Height = qrSize,
+                Margin = new Thickness(0, 0, margin, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new System.Windows.Controls.Image
+                {
+                    Source = qrImage,
+                    Stretch = Stretch.Uniform
+                }
+            };
+
+            System.Windows.Controls.Grid.SetColumn(qrBorder, 1);
+            grid.Children.Add(qrBorder);
+        }
+
+        return grid;
+    }
+
+    // Baut die linke Textspalte (Logo, Firmenname, aktivierte Felder,
+    // Seriennummer-Badge) bei einem bestimmten Skalierungsfaktor auf. Wird
+    // ggf. zweimal aufgerufen: einmal mit der anhand der Etikettenhöhe
+    // geschätzten Ausgangsgröße, und - falls das zu groß war - ein zweites
+    // Mal mit einer passend verkleinerten (siehe BuildPrintVisual).
+    private static System.Windows.Controls.StackPanel BuildContentPanel(
+        LabelData label,
+        double scale,
+        Brush accentBrush)
+    {
+        var contentPanel = new System.Windows.Controls.StackPanel();
 
         if (label.LogoBytes is { Length: > 0 })
         {
@@ -113,7 +183,7 @@ public class PrinterService
                 {
                     Source = logoImage,
                     Stretch = Stretch.Uniform,
-                    MaxHeight = 9 * scale * DiuPerMm,
+                    MaxHeight = 7 * scale * DiuPerMm,
                     HorizontalAlignment = HorizontalAlignment.Left,
                     Margin = new Thickness(0, 0, 0, 2 * scale)
                 });
@@ -194,31 +264,7 @@ public class PrinterService
 
         AddField("Bearbeiter", label.OperatorName, label.ShowOperator);
 
-        System.Windows.Controls.Grid.SetColumn(contentPanel, 0);
-        grid.Children.Add(contentPanel);
-
-        if (showQr)
-        {
-            var qrImage = BuildQrImage(label.QrContent);
-
-            var qrBorder = new System.Windows.Controls.Border
-            {
-                Width = qrSize,
-                Height = qrSize,
-                Margin = new Thickness(0, 0, margin, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                Child = new System.Windows.Controls.Image
-                {
-                    Source = qrImage,
-                    Stretch = Stretch.Uniform
-                }
-            };
-
-            System.Windows.Controls.Grid.SetColumn(qrBorder, 1);
-            grid.Children.Add(qrBorder);
-        }
-
-        return grid;
+        return contentPanel;
     }
 
     // Verwendet, falls vorhanden, dieselbe Farbe wie die selbst gewählte

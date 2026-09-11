@@ -45,12 +45,32 @@ public class SerialService
                  .ToList();
     }
 
-    public SerialHistory? GetHistoryEntry(string serialNumber)
+    // Seriennummern sind, wie in CreateBatch unten beschrieben, nur PRO
+    // ARTIKEL eindeutig - Artikel A und Artikel B können beide eine "0001"
+    // haben. Ein eindeutiger Treffer braucht daher immer beide Werte
+    // zusammen (siehe auch QrPayloadParser, der genau das aus einem
+    // gescannten QR-Code liefert).
+    public SerialHistory? GetHistoryEntry(string articleNumber, string serialNumber)
     {
         using var db = DbContextFactory.Create();
 
         return db.SerialHistories
-                 .FirstOrDefault(h => h.SerialNumber == serialNumber);
+                 .FirstOrDefault(h =>
+                     h.ArticleNumber == articleNumber &&
+                     h.SerialNumber == serialNumber);
+    }
+
+    // Fallback, falls nur die reine Seriennummer bekannt ist (z. B. von
+    // Hand eingetippt statt gescannt) - kann wegen der oben beschriebenen
+    // Pro-Artikel-Eindeutigkeit mehrere Treffer über verschiedene Artikel
+    // hinweg liefern.
+    public List<SerialHistory> FindBySerialNumber(string serialNumber)
+    {
+        using var db = DbContextFactory.Create();
+
+        return db.SerialHistories
+                 .Where(h => h.SerialNumber == serialNumber)
+                 .ToList();
     }
 
     public void DeleteHistoryEntry(int id)

@@ -39,13 +39,22 @@ public class LabelData
     public double WidthMm { get; set; } = 60;
     public double HeightMm { get; set; } = 40;
 
+    // Bewusst EINZEILIG (kein Zeilenumbruch!) und mit Prozent-Kodierung der
+    // Werte: ein am PC angeschlossener USB-/Bluetooth-Scanner "tippt" den
+    // gescannten QR-Inhalt wie eine Tastatur in das gerade fokussierte Feld.
+    // Enthielte der Inhalt Zeilenumbrüche, würde jeder davon als Enter-Taste
+    // ankommen und z. B. ein einzeiliges Suchfeld (siehe MainWindow,
+    // "Seriennummer scannen") vorzeitig abschicken, bevor der Rest getippt
+    // ist. "SM1?" am Anfang ist eine feste Kennung, an der QrPayloadParser
+    // erkennt, dass es sich um einen von dieser App erzeugten QR-Code
+    // handelt (und nicht z. B. um eine manuell eingetippte Seriennummer).
+    // Jeder Wert wird einzeln kodiert (Uri.EscapeDataString), damit z. B. ein
+    // "&" oder "=" in der Beschreibung das Format nicht zerstört.
     public string QrContent =>
-$"""
-Firma={CompanyName}
-Artikel={ArticleNumber}
-Beschreibung={Description}
-Serial={SerialNumber}
-Maschine={Machine}
-Datum={Created:dd.MM.yyyy - HH:mm}
-""";
+        "SM1?Artikel=" + Uri.EscapeDataString(ArticleNumber) +
+        "&Serial=" + Uri.EscapeDataString(SerialNumber) +
+        "&Maschine=" + Uri.EscapeDataString(Machine) +
+        "&Firma=" + Uri.EscapeDataString(CompanyName) +
+        "&Beschreibung=" + Uri.EscapeDataString(Description) +
+        "&Datum=" + Uri.EscapeDataString(Created.ToString("dd.MM.yyyy HH:mm"));
 }

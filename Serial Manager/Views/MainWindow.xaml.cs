@@ -346,6 +346,88 @@ public partial class MainWindow : Window
         }
     }
 
+    // Ein am PC angeschlossener USB-/Bluetooth-Scanner "tippt" den Inhalt
+    // eines gescannten QR-Codes einfach wie eine Tastatur in das gerade
+    // fokussierte Feld und schickt danach ein Enter hinterher - genau das
+    // wird hier abgefangen. Funktioniert genauso mit von Hand eingetippten
+    // Seriennummern.
+    private void txtScan_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
+            return;
+
+        e.Handled = true;
+
+        string scanned = txtScan.Text.Trim();
+
+        txtScan.Text = "";
+
+        if (string.IsNullOrWhiteSpace(scanned))
+            return;
+
+        SerialHistory? entry;
+
+        if (QrPayloadParser.TryParse(scanned, out string articleNumber, out string serialNumber))
+        {
+            entry = _serialService.GetHistoryEntry(articleNumber, serialNumber);
+
+            if (entry == null)
+            {
+                MessageBox.Show(
+                    $"Zu Artikel {articleNumber} / Seriennummer {serialNumber} wurde kein Eintrag gefunden.",
+                    "Seriennummer scannen",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                return;
+            }
+        }
+        else
+        {
+            // Kein von dieser App erzeugter QR-Code - als reine, von Hand
+            // eingetippte oder mit einem generischen Scanner gelesene
+            // Seriennummer behandeln. Da Seriennummern nur pro Artikel
+            // eindeutig sind, kann das mehrdeutig sein.
+            var matches = _serialService.FindBySerialNumber(scanned);
+
+            if (matches.Count == 0)
+            {
+                MessageBox.Show(
+                    $"Zur Seriennummer \"{scanned}\" wurde kein Eintrag gefunden.",
+                    "Seriennummer scannen",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                return;
+            }
+
+            if (matches.Count > 1)
+            {
+                string articleList = string.Join(", ", matches.Select(m => m.ArticleNumber).Distinct());
+
+                MessageBox.Show(
+                    $"Die Seriennummer \"{scanned}\" gibt es bei mehreren Artikeln ({articleList}).\n\n" +
+                    "Bitte den QR-Code des Etiketts scannen (eindeutig) statt nur die Seriennummer einzutippen.",
+                    "Seriennummer scannen",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                return;
+            }
+
+            entry = matches[0];
+        }
+
+        var window = new HistoryDetailWindow(entry)
+        {
+            Owner = this
+        };
+
+        window.ShowDialog();
+
+        txtScan.Focus();
+    }
+
     private void dgHistory_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (dgHistory.SelectedItem is not SerialHistory history)

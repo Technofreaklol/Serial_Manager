@@ -93,20 +93,41 @@ Click="MenuResetSerial_Click"/>
                 BorderBrush="#D0D0D0"
                 BorderThickness="0,0,0,1"
                 Padding="4">
-            <StackPanel Orientation="Horizontal">
+            <DockPanel LastChildFill="False">
 
-                <Button Content="Artikel"
-                        Click="MenuArticles_Click"/>
+                <StackPanel Orientation="Horizontal"
+                            DockPanel.Dock="Left">
 
-                <Button x:Name="btnMachinesToolbar" Content="Maschinen"
-                        Click="MenuMachines_Click"/>
+                    <Button Content="Artikel"
+                            Click="MenuArticles_Click"/>
 
-                <Separator/>
+                    <Button x:Name="btnMachinesToolbar" Content="Maschinen"
+                            Click="MenuMachines_Click"/>
 
-                <Button Content="Aktualisieren"
-                        Click="Refresh_Click"/>
+                    <Separator/>
 
-            </StackPanel>
+                    <Button Content="Aktualisieren"
+                            Click="Refresh_Click"/>
+
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal"
+                            DockPanel.Dock="Right"
+                            VerticalAlignment="Center">
+
+                    <TextBlock Text="Seriennummer scannen:"
+                               VerticalAlignment="Center"
+                               Margin="0,0,6,0"/>
+
+                    <TextBox x:Name="txtScan"
+                             Width="260"
+                             VerticalAlignment="Center"
+                             ToolTip="QR-Code eines Etiketts scannen oder Seriennummer eintippen und Enter drücken"
+                             KeyDown="txtScan_KeyDown"/>
+
+                </StackPanel>
+
+            </DockPanel>
         </Border>
 
         <!-- Hauptbereich -->

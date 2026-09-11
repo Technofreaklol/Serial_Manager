@@ -56,10 +56,10 @@
                 <TextBlock Text="Seriennummer"
                        FontWeight="Bold"/>
 
-                <Border Background="#1976D2"
+                <Border
                     CornerRadius="5"
                     Padding="8"
-                    Margin="0,2,0,8">
+                    Margin="0,2,0,8" Background="{DynamicResource PrimaryBrush}">
 
                     <TextBlock x:Name="lblSerial"
                            FontSize="26"
@@ -124,12 +124,12 @@
 
             <Button Width="120"
                     Content="Drucken"
-                    Click="Print_Click"/>
+                    Click="Print_Click" Background="{DynamicResource PrimaryBrush}"/>
 
             <Button Width="120"
                     Margin="10,0,0,0"
                     Content="Schlie&#223;en"
-                    Click="Close_Click"/>
+                    Click="Close_Click" Background="{DynamicResource PrimaryBrush}"/>
 
         </StackPanel>
 
