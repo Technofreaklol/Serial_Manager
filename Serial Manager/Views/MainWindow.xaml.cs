@@ -12,6 +12,7 @@ using Microsoft.Win32;
 using System.IO;
 using System.Text;
 using System.Windows.Threading;
+using SerialManager.Helpers;
 
 namespace SerialManager;
 
