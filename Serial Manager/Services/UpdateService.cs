@@ -288,7 +288,7 @@ public class UpdateService
         if (!ScheduledUpdateTaskExists())
         {
             statusProgress?.Report("Administratorrechte werden angefordert...");
-            RunInstallerElevatedAndShutdown(downloadedInstallerPath);
+            RunInstallerElevatedAndShutdown(downloadedInstallerPath, targetVersion);
             return;
         }
 
@@ -466,9 +466,22 @@ public class UpdateService
     /// InstallUpdateAsync): startet den Installer mit angeforderten
     /// Administratorrechten (UAC-Dialog) und beendet anschließend sofort
     /// die aktuell laufende Anwendung. Kehrt nicht zurück.
+    ///
+    /// Startet - genau wie der bevorzugte Taskplaner-Weg - vorher ebenfalls
+    /// den unabhängigen PowerShell-Watcher (siehe StartDetachedUpdateWatcher),
+    /// damit sich die Anwendung auch nach DIESEM Weg automatisch neu
+    /// startet, sobald die neue Version installiert ist. Der Installer
+    /// läuft hier zwar mit "/SILENT" (zeigt also noch eine
+    /// Fortschrittsanzeige), aber NICHT mit "/VERYSILENT" ohne
+    /// "skipifsilent"-Postinstall-Lauf - Inno Setups eigener
+    /// "{app}\SerialManager.exe"-Start in installer.iss würde bei "/SILENT"
+    /// wegen des Flags "skipifsilent" übersprungen, die App also OHNE
+    /// diesen Watcher gar nicht automatisch neu starten.
     /// </summary>
-    private static void RunInstallerElevatedAndShutdown(string installerFilePath)
+    private static void RunInstallerElevatedAndShutdown(string installerFilePath, Version targetVersion)
     {
+        StartDetachedUpdateWatcher(GetInstalledExePath(), targetVersion);
+
         var startInfo = new ProcessStartInfo(installerFilePath)
         {
             UseShellExecute = true,
