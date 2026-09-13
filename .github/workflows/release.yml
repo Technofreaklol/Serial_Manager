@@ -78,16 +78,37 @@ jobs:
       - name: Installer mit Inno Setup bauen
         shell: pwsh
         run: |
-          $publishDir = Join-Path (Get-Location) "publish"
-          $releaseDir = Join-Path (Get-Location) "build\Releases"
+          # Bewusst durchgehend ABSOLUTE Pfade (aus $env:GITHUB_WORKSPACE
+          # abgeleitet) statt relativer Pfade/Get-Location, und der
+          # ISCC-Aufruf als EIN einzelner Befehl mit gesplatteten Argumenten
+          # (@isccArgs) statt mehrzeiliger Backtick-Fortsetzung: Ein zuvor
+          # verwendetes, über mehrere Zeilen per "`" fortgesetztes "&"-
+          # Kommando führte hier zu "The system cannot find the file
+          # specified." - vermutlich weil eine der Backtick-Fortsetzungen
+          # nicht wie erwartet griff und ISCC dadurch ohne (oder mit
+          # falschen) Argumenten aufgerufen wurde. Diese Variante ist robuster
+          # und protokolliert zusätzlich vorab, ob jeder benötigte Pfad
+          # tatsächlich existiert, damit ein erneuter Fehler direkt im Log
+          # erkennbar ist.
+          $publishDir = Join-Path $env:GITHUB_WORKSPACE "publish"
+          $releaseDir = Join-Path $env:GITHUB_WORKSPACE "build\Releases"
+          $issFile    = Join-Path $env:GITHUB_WORKSPACE "build\installer.iss"
+          $iscc       = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+
+          Write-Host "PublishDir: $publishDir (exists: $(Test-Path $publishDir))"
+          Write-Host "IssFile:    $issFile (exists: $(Test-Path $issFile))"
+          Write-Host "ISCC:       $iscc (exists: $(Test-Path $iscc))"
 
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
-              "build\installer.iss" `
-              "/DMyAppVersion=${{ steps.version.outputs.version }}" `
-              "/DPublishDir=$publishDir" `
+          $isccArgs = @(
+              $issFile,
+              "/DMyAppVersion=${{ steps.version.outputs.version }}",
+              "/DPublishDir=$publishDir",
               "/DOutputDir=$releaseDir"
+          )
+
+          & $iscc @isccArgs
 
           if ($LASTEXITCODE -ne 0) { throw "ISCC.exe (Inno Setup) ist fehlgeschlagen." }
 
@@ -97,7 +118,7 @@ jobs:
           HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' }}
         shell: pwsh
         run: |
-          $setupExe = Join-Path (Get-Location) "build\Releases\SerialManagerSetup.exe"
+          $setupExe = Join-Path $env:GITHUB_WORKSPACE "build\Releases\SerialManagerSetup.exe"
 
           $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
                           -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
