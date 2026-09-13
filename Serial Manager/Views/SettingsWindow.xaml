@@ -1,8 +1,8 @@
-<Window x:Class="SerialManager.Views.SettingsWindow"
+﻿<Window x:Class="SerialManager.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Einstellungen"
-        Height="730"
+        Height="560"
         Width="520"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner">
@@ -61,6 +61,47 @@
                               Content="Etikettenvorschau nach dem Erzeugen anzeigen"/>
 
                 </Grid>
+            </TabItem>
+
+            <!-- ================= Backup ================= -->
+            <TabItem Header="Backup">
+                <StackPanel Margin="10">
+
+                    <CheckBox x:Name="chkSecondaryBackup"
+                              Content="Zusätzlich in einem Netzwerk-/Cloud-Ordner sichern"
+                              Checked="ChkSecondaryBackup_CheckedChanged"
+                              Unchecked="ChkSecondaryBackup_CheckedChanged"/>
+
+                    <StackPanel Orientation="Horizontal"
+                                Margin="0,12,0,0">
+
+                        <TextBox x:Name="txtSecondaryBackupPath"
+                                 Width="300"
+                                 VerticalAlignment="Center"/>
+
+                        <Button x:Name="btnChooseSecondaryBackupPath"
+                                Content="..."
+                                Width="36"
+                                Margin="8,0,0,0"
+                                ToolTip="Ordner auswählen"
+                                Click="BtnChooseSecondaryBackupPath_Click"/>
+
+                    </StackPanel>
+
+                    <TextBlock Margin="0,12,0,0"
+                               TextWrapping="Wrap"
+                               Text="Nach jedem Backup (auch dem automatischen beim Programmstart, siehe Reiter &quot;Allgemein&quot;) wird zusätzlich eine Kopie in diesen Ordner geschrieben - z. B. ein Netzlaufwerk (\\Server\Freigabe\Backups) oder ein lokal synchronisierter Cloud-Ordner (OneDrive, Google Drive, Dropbox usw.)."/>
+
+                    <TextBlock Margin="0,10,0,0"
+                               TextWrapping="Wrap"
+                               Text="Ist der Ordner gerade nicht erreichbar (z. B. kein Netzwerk, Cloud-Ordner nicht synchronisiert), erscheint nach dem manuellen Backup nur ein Hinweis - das lokale Backup wird davon nicht beeinträchtigt."/>
+
+                    <TextBlock Margin="0,15,0,0"
+                               TextWrapping="Wrap"
+                               FontStyle="Italic"
+                               Text="Hinweis: Dies ist eine einfache Ordner-Kopie, keine echte Anbindung an eine Cloud-API. Der Zielordner muss als normaler Datei-Ordner erreichbar sein (Netzlaufwerk oder ein bereits auf diesem PC synchronisierter Cloud-Ordner)."/>
+
+                </StackPanel>
             </TabItem>
 
             <!-- ================= Button-Farbe ================= -->

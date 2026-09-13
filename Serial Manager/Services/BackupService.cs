@@ -28,16 +28,84 @@ public class BackupService
         _backupPath = AppPaths.BackupsFolder;
     }
 
+    // Wird nach jedem CreateBackup() neu gesetzt (leer = kein Fehler):
+    // Meldung, falls die zusätzliche Sicherung in den Netzwerk-/
+    // Cloud-Ordner (siehe TryCopyToSecondaryLocation) fehlgeschlagen ist -
+    // z. B. weil der Ordner gerade nicht erreichbar ist (Laptop offline,
+    // VPN nicht verbunden, Cloud-Ordner noch nicht synchronisiert). Das
+    // lokale Backup ist davon unabhängig immer schon erstellt worden.
+    public string LastSecondaryBackupError { get; private set; } = "";
+
     public string CreateBackup(IProgress<BackupProgress>? progress = null)
     {
         var config = _databaseConfig.Load();
 
-        return config.Provider switch
+        string destination = config.Provider switch
         {
             "SQLite" => BackupSQLite(config.SQLite.File, progress),
             "MSSQL" => BackupMsSql(config.MSSQL, progress),
             _ => BackupMySql(config.MySQL, progress)
         };
+
+        TryCopyToSecondaryLocation(destination);
+
+        return destination;
+    }
+
+    // Kopiert das gerade erstellte Backup zusätzlich in einen
+    // Netzwerk-/Cloud-Ordner, falls in den Einstellungen aktiviert (z. B.
+    // ein Netzlaufwerk "\\server\freigabe\..." oder ein lokal
+    // synchronisierter Cloud-Ordner wie OneDrive/Google Drive/Dropbox -
+    // eine direkte Anbindung an die jeweilige Cloud-API ist das bewusst
+    // NICHT, nur ein einfaches Kopieren in einen lokal erreichbaren Ordner).
+    // Läuft bei jedem Backup mit, auch beim automatischen Backup beim
+    // Programmstart (siehe App.xaml.cs). Ein Fehler hier (Ordner nicht
+    // erreichbar) darf das eigentliche, bereits erfolgreich erstellte
+    // lokale Backup nicht ungültig machen - deshalb wird hier nichts
+    // geworfen, sondern nur in LastSecondaryBackupError gemerkt.
+    private void TryCopyToSecondaryLocation(string backupFile)
+    {
+        LastSecondaryBackupError = "";
+
+        if (!_settings.GetBool("SecondaryBackupEnabled"))
+            return;
+
+        string secondaryPath = _settings.GetValue("SecondaryBackupPath").Trim();
+
+        if (string.IsNullOrWhiteSpace(secondaryPath))
+            return;
+
+        try
+        {
+            Directory.CreateDirectory(secondaryPath);
+
+            string destination = Path.Combine(secondaryPath, Path.GetFileName(backupFile));
+
+            File.Copy(backupFile, destination, true);
+
+            CleanupSecondary(secondaryPath);
+        }
+        catch (Exception ex)
+        {
+            LastSecondaryBackupError = ex.Message;
+        }
+    }
+
+    private void CleanupSecondary(string secondaryPath)
+    {
+        int keep = _settings.GetInt("BackupCount", 20);
+        string provider = _databaseConfig.Load().Provider;
+        string pattern = provider == "SQLite" ? "Backup_*.db" : "Backup_*.smbak";
+
+        var files = new DirectoryInfo(secondaryPath)
+            .GetFiles(pattern)
+            .OrderByDescending(f => f.CreationTime)
+            .ToList();
+
+        foreach (var file in files.Skip(keep))
+        {
+            file.Delete();
+        }
     }
 
     public bool HasExistingDatabase()

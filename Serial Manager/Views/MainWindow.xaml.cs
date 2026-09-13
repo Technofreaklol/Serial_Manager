@@ -1,17 +1,16 @@
-using Microsoft.Win32;
-using SerialManager.Helpers;
-using SerialManager.Models;
+﻿using SerialManager.Models;
 using SerialManager.Services;
-using SerialManager.Views;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using SerialManager.Views;
+using System.Linq;
 using System.Windows.Input;
+using Microsoft.Win32;
+using System.IO;
+using System.Text;
 using System.Windows.Threading;
 
 namespace SerialManager;
@@ -26,6 +25,7 @@ public partial class MainWindow : Window
     private readonly LabelService _labelService = new();
     private readonly PrinterService _printerService = new();
     private readonly UpdateService _updateService = new();
+    private readonly SettingsService _settingsService = new();
 
     private List<Article> _allArticles = new();
     private List<Article> _customerArticles = new();
@@ -90,33 +90,43 @@ public partial class MainWindow : Window
             return;
         }
 
-        var result = MessageBox.Show(
-            $"Eine neue Version ({update.Version}) ist verfügbar.\n\n" +
-            "Soll das Update jetzt heruntergeladen werden? Danach öffnet " +
-            "sich der Installer (Administratorrechte/UAC-Bestätigung " +
-            "erforderlich, da nach \"C:\\Program Files\" installiert wird) " +
-            "und die Anwendung wird geschlossen.",
-            "Update verfügbar",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
-
-        if (result != MessageBoxResult.Yes)
+        // Bei der stillen Prüfung im Hintergrund (Programmstart) "Später
+        // erinnern"/"Version überspringen" aus UpdateAvailableWindow
+        // berücksichtigen - über das Menü "Nach Updates suchen" fragt der
+        // Benutzer aber ausdrücklich nach, dort also immer anzeigen.
+        if (!showFeedbackWhenUpToDate && IsUpdateSuppressed(update.Version))
             return;
 
-        try
+        new UpdateAvailableWindow(update, _updateService)
         {
-            string installerPath = await _updateService.DownloadInstallerAsync(update);
-            _updateService.RunInstallerAndShutdown(installerPath);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(
-                "Das Update konnte nicht heruntergeladen/installiert werden:\n\n" +
-                ex.Message,
-                "Fehler beim Update",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
+            Owner = this
+        }.ShowDialog();
+    }
+
+    private bool IsUpdateSuppressed(Version updateVersion)
+    {
+        string versionText = updateVersion.ToString();
+
+        if (string.Equals(
+                _settingsService.GetValue("UpdateSkipVersion"),
+                versionText,
+                StringComparison.Ordinal))
+            return true;
+
+        if (!string.Equals(
+                _settingsService.GetValue("UpdateSnoozedVersion"),
+                versionText,
+                StringComparison.Ordinal))
+            return false;
+
+        string snoozedUntilRaw = _settingsService.GetValue("UpdateSnoozedUntilUtc");
+
+        return DateTime.TryParse(
+                   snoozedUntilRaw,
+                   System.Globalization.CultureInfo.InvariantCulture,
+                   System.Globalization.DateTimeStyles.RoundtripKind,
+                   out var snoozedUntilUtc) &&
+               DateTime.UtcNow < snoozedUntilUtc;
     }
 
     private void ApplyRolePermissions()
@@ -492,8 +502,18 @@ public partial class MainWindow : Window
 
             lblStatus.Text = "Backup erstellt.";
 
+            string message = $"Backup erfolgreich erstellt.\n\n{file}";
+
+            if (!string.IsNullOrEmpty(_backupService.LastSecondaryBackupError))
+            {
+                message +=
+                    "\n\nHinweis: Die zusätzliche Sicherung im Netzwerk-/" +
+                    "Cloud-Ordner ist fehlgeschlagen (das lokale Backup " +
+                    $"oben wurde trotzdem erstellt):\n{_backupService.LastSecondaryBackupError}";
+            }
+
             MessageBox.Show(
-                $"Backup erfolgreich erstellt.\n\n{file}",
+                message,
                 "Backup",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);

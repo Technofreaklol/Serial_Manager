@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -11,10 +11,11 @@ namespace SerialManager.Services;
 
 /// <summary>
 /// Ergebnis einer erfolgreichen Update-Prüfung: die auf GitHub gefundene
-/// neuere Version und der Download-Link zum passenden Installer-Asset
-/// (siehe InstallerAssetName unten).
+/// neuere Version, der Download-Link zum passenden Installer-Asset (siehe
+/// InstallerAssetName unten) und die Versionshinweise (Release-Beschreibung
+/// aus GitHub, für die "Was ist neu"-Anzeige in UpdateAvailableWindow).
 /// </summary>
-public sealed record UpdateCheckResult(Version Version, string DownloadUrl, string FileName);
+public sealed record UpdateCheckResult(Version Version, string DownloadUrl, string FileName, string ReleaseNotes);
 
 /// <summary>
 /// Kapselt die Update-Logik OHNE Velopack.
@@ -153,6 +154,14 @@ public class UpdateService
             if (latestVersion <= GetCurrentVersion())
                 return null;
 
+            // "body" = der Freitext, den man beim Erstellen des GitHub-
+            // Release eingibt (bzw. "--notes" bei "gh release create") -
+            // wird unverändert als Versionshinweise angezeigt
+            // (UpdateAvailableWindow). Kann fehlen/leer sein.
+            string releaseNotes = root.TryGetProperty("body", out var bodyProp)
+                ? bodyProp.GetString() ?? ""
+                : "";
+
             if (!root.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
                 return null;
 
@@ -172,7 +181,7 @@ public class UpdateService
                 if (string.IsNullOrWhiteSpace(downloadUrl))
                     return null;
 
-                return new UpdateCheckResult(latestVersion, downloadUrl, InstallerAssetName);
+                return new UpdateCheckResult(latestVersion, downloadUrl, InstallerAssetName, releaseNotes);
             }
 
             // Release gefunden, aber kein passendes Installer-Asset
@@ -191,19 +200,44 @@ public class UpdateService
     /// <summary>
     /// Lädt den Installer des gefundenen Updates in einen temporären
     /// Ordner herunter und gibt den vollständigen Dateipfad zurück.
+    /// "progress" wird laufend mit dem Fortschritt in Prozent (0-100)
+    /// aufgerufen (für die Fortschrittsanzeige in UpdateAvailableWindow) -
+    /// wenn der Server keine Content-Length mitliefert, bleibt der
+    /// Fortschritt bei 0, bis der Download abgeschlossen ist (dann 100).
     /// </summary>
-    public async Task<string> DownloadInstallerAsync(UpdateCheckResult update)
+    public async Task<string> DownloadInstallerAsync(UpdateCheckResult update, IProgress<double>? progress = null)
     {
         string tempDir = Path.Combine(Path.GetTempPath(), "SerialManagerUpdate");
         Directory.CreateDirectory(tempDir);
 
         string filePath = Path.Combine(tempDir, update.FileName);
 
-        using var response = await HttpClient.GetAsync(update.DownloadUrl);
+        using var response = await HttpClient.GetAsync(
+            update.DownloadUrl,
+            HttpCompletionOption.ResponseHeadersRead);
+
         response.EnsureSuccessStatusCode();
 
+        long? totalBytes = response.Content.Headers.ContentLength;
+
+        await using var contentStream = await response.Content.ReadAsStreamAsync();
         await using var fileStream = File.Create(filePath);
-        await response.Content.CopyToAsync(fileStream);
+
+        var buffer = new byte[81920];
+        long totalRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+        {
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+
+            totalRead += bytesRead;
+
+            if (totalBytes is > 0)
+                progress?.Report((double)totalRead / totalBytes.Value * 100);
+        }
+
+        progress?.Report(100);
 
         return filePath;
     }

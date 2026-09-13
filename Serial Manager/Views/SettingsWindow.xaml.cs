@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -95,6 +95,15 @@ public partial class SettingsWindow : Window
 
         chkShowLabelPreview.IsChecked =
             config.ShowLabelPreview;
+
+        chkSecondaryBackup.IsChecked =
+            _settingsService.GetBool("SecondaryBackupEnabled");
+
+        txtSecondaryBackupPath.Text =
+            _settingsService.GetValue("SecondaryBackupPath");
+
+        txtSecondaryBackupPath.IsEnabled = chkSecondaryBackup.IsChecked == true;
+        btnChooseSecondaryBackupPath.IsEnabled = chkSecondaryBackup.IsChecked == true;
 
         txtButtonColor.Text =
             ThemeService.GetSavedButtonColorHex();
@@ -197,6 +206,33 @@ public partial class SettingsWindow : Window
         UpdateLogoPreview();
     }
 
+    private void ChkSecondaryBackup_CheckedChanged(object sender, RoutedEventArgs e)
+    {
+        bool enabled = chkSecondaryBackup.IsChecked == true;
+
+        txtSecondaryBackupPath.IsEnabled = enabled;
+        btnChooseSecondaryBackupPath.IsEnabled = enabled;
+    }
+
+    // Ordnerauswahl für den Netzwerk-/Cloud-Backup-Ordner. Wie bei
+    // BtnPickColor_Click bewusst voll qualifiziert (System.Windows.Forms
+    // kollidiert sonst mit System.Windows.Controls) - WPF selbst hat keinen
+    // eigenen Ordnerauswahldialog.
+    private void BtnChooseSecondaryBackupPath_Click(object sender, RoutedEventArgs e)
+    {
+        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        {
+            Description = "Ordner für zusätzliche Backups auswählen (Netzlaufwerk oder Cloud-Ordner)",
+            UseDescriptionForTitle = true,
+            SelectedPath = txtSecondaryBackupPath.Text.Trim()
+        };
+
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+            return;
+
+        txtSecondaryBackupPath.Text = dialog.SelectedPath;
+    }
+
     private void BtnRemoveLogo_Click(object sender, RoutedEventArgs e)
     {
         _pendingLogoBase64 = "";
@@ -262,6 +298,18 @@ public partial class SettingsWindow : Window
             return;
         }
 
+        bool secondaryBackupEnabled = chkSecondaryBackup.IsChecked == true;
+        string secondaryBackupPath = txtSecondaryBackupPath.Text.Trim();
+
+        if (secondaryBackupEnabled && string.IsNullOrWhiteSpace(secondaryBackupPath))
+        {
+            MessageBox.Show(
+                "Bitte einen Ordner für die zusätzliche Sicherung auswählen " +
+                "oder das Häkchen entfernen.");
+
+            return;
+        }
+
         var configService = new ApplicationConfigurationService();
         var config = configService.Load();
 
@@ -274,6 +322,14 @@ public partial class SettingsWindow : Window
         _settingsService.SetBool(
             "AutoBackup",
             chkAutoBackup.IsChecked == true);
+
+        _settingsService.SetBool(
+            "SecondaryBackupEnabled",
+            secondaryBackupEnabled);
+
+        _settingsService.SetValue(
+            "SecondaryBackupPath",
+            secondaryBackupPath);
 
         config.ShowLabelPreview =
     chkShowLabelPreview.IsChecked == true;
