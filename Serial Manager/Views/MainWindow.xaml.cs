@@ -13,7 +13,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
-using Velopack;
 
 namespace SerialManager;
 
@@ -51,7 +50,7 @@ public partial class MainWindow : Window
     }
 
     // -------------------------------------------------------------
-    // Update-Prüfung (Velopack)
+    // Update-Prüfung (GitHub Releases + Installer, siehe UpdateService.cs)
     // -------------------------------------------------------------
     private async void MenuCheckForUpdates_Click(object sender, RoutedEventArgs e)
     {
@@ -75,7 +74,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        UpdateInfo? update = await _updateService.CheckForUpdatesAsync();
+        UpdateCheckResult? update = await _updateService.CheckForUpdatesAsync();
 
         if (update == null)
         {
@@ -92,9 +91,11 @@ public partial class MainWindow : Window
         }
 
         var result = MessageBox.Show(
-            $"Eine neue Version ({update.TargetFullRelease.Version}) ist verfügbar.\n\n" +
-            "Soll das Update jetzt heruntergeladen werden? " +
-            "Die Anwendung wird danach automatisch neu gestartet.",
+            $"Eine neue Version ({update.Version}) ist verfügbar.\n\n" +
+            "Soll das Update jetzt heruntergeladen werden? Danach öffnet " +
+            "sich der Installer (Administratorrechte/UAC-Bestätigung " +
+            "erforderlich, da nach \"C:\\Program Files\" installiert wird) " +
+            "und die Anwendung wird geschlossen.",
             "Update verfügbar",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -104,8 +105,8 @@ public partial class MainWindow : Window
 
         try
         {
-            await _updateService.DownloadUpdateAsync(update);
-            _updateService.ApplyUpdateAndRestart(update);
+            string installerPath = await _updateService.DownloadInstallerAsync(update);
+            _updateService.RunInstallerAndShutdown(installerPath);
         }
         catch (Exception ex)
         {

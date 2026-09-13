@@ -7,9 +7,19 @@ name: Release
 #   2. git commit
 #   3. git tag v1.2.3
 #   4. git push origin main --tags
-# Dieser Workflow baut die Anwendung, verpackt sie mit Velopack (vpk)
-# zu einem Windows-Installer + Update-Paketen und veröffentlicht sie
-# automatisch als GitHub Release.
+# Dieser Workflow baut die Anwendung und verpackt sie mit Inno Setup zu
+# einem klassischen Windows-Installer (SerialManagerSetup.exe), der nach
+# "C:\Program Files\SerialManager" installiert (Administratorrechte
+# erforderlich) - und veröffentlicht ihn automatisch als GitHub Release.
+#
+# Hinweis zum Umstieg weg von Velopack: Velopack installierte bewusst PRO
+# BENUTZER ohne Admin-Rechte unter %LocalAppData%, damit es sich selbst im
+# Hintergrund aktualisieren konnte. Ein echtes "C:\Program Files"-Setup
+# braucht dagegen zwingend Administratorrechte - auch für Updates (siehe
+# Services/UpdateService.cs, das den Installer mit einem UAC-Dialog
+# erneut aufruft). Das ist der bewusst in Kauf genommene Kompromiss für
+# eine "normale" Installation wie bei den meisten anderen Windows-
+# Anwendungen.
 on:
   push:
     tags:
@@ -47,20 +57,9 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           -o publish
 
-      # Alles rund um vpk läuft bewusst in EINEM einzigen bash-Schritt
-      # (statt über mehrere Schritte verteilt): "dotnet tool install -g"
-      # aktualisiert nur die PERSISTIERTE PATH-Variable für zukünftige
-      # Shells, nicht die der aktuell laufenden. Jeder Workflow-Schritt
-      # startet aber eine neue Shell - über $GITHUB_PATH hinzugefügte
-      # Einträge sollten dort zwar automatisch verfügbar sein, das hat
-      # sich in der Praxis auf windows-latest aber nicht zuverlässig
-      # gezeigt. Deshalb zusätzlich als Absicherung: PATH innerhalb
-      # dieses einen Schritts explizit selbst erweitern.
-      - name: vpk-CLI installieren
-        shell: bash
-        run: |
-          dotnet tool install -g vpk
-          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+      - name: Inno Setup installieren
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
 
       # Optional: Code-Signing-Zertifikat. Erst aktiv, wenn die Secrets
       # WINDOWS_CERTIFICATE_BASE64 (Base64-codierte .pfx-Datei) und
@@ -76,42 +75,50 @@ jobs:
         run: |
           echo "${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}" | base64 --decode > cert.pfx
 
-      - name: Installer, Update-Pakete erstellen und veröffentlichen
-        shell: bash
+      - name: Installer mit Inno Setup bauen
+        shell: pwsh
+        run: |
+          $publishDir = Join-Path (Get-Location) "publish"
+          $releaseDir = Join-Path (Get-Location) "build\Releases"
+
+          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" `
+              "build\installer.iss" `
+              "/DMyAppVersion=${{ steps.version.outputs.version }}" `
+              "/DPublishDir=$publishDir" `
+              "/DOutputDir=$releaseDir"
+
+          if ($LASTEXITCODE -ne 0) { throw "ISCC.exe (Inno Setup) ist fehlgeschlagen." }
+
+      - name: Installer signieren
+        if: ${{ env.HAS_CERT == 'true' }}
         env:
           HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' }}
+        shell: pwsh
         run: |
-          # Absicherung, falls $GITHUB_PATH aus dem vorherigen Schritt aus
-          # irgendeinem Grund nicht greift:
-          export PATH="$PATH:$HOME/.dotnet/tools"
+          $setupExe = Join-Path (Get-Location) "build\Releases\SerialManagerSetup.exe"
 
-          if ! command -v vpk >/dev/null 2>&1; then
-            echo "::error::vpk wurde nicht im PATH gefunden ($HOME/.dotnet/tools)."
-            exit 1
-          fi
+          $signtool = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+                          -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+                      Where-Object { $_.FullName -match "\\x64\\" } |
+                      Select-Object -First 1
 
-          # Vorherige Releases laden (für Delta-Updates). Beim allerersten
-          # Release gibt es noch nichts zu laden - kein Fehler.
-          vpk download github --repoUrl "https://github.com/${{ github.repository }}" || true
+          if (-not $signtool) { throw "signtool.exe wurde nicht gefunden." }
 
-          SIGN_ARGS=()
-          if [ "$HAS_CERT" = "true" ]; then
-            SIGN_ARGS=(--signParams "/f cert.pfx /p \"${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}\" /tr http://timestamp.digicert.com /td sha256 /fd sha256")
-          fi
+          $signProcess = Start-Process -FilePath $signtool.FullName `
+              -ArgumentList "sign /f cert.pfx /p `"${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}`" /tr http://timestamp.digicert.com /td sha256 /fd sha256 `"$setupExe`"" `
+              -NoNewWindow -Wait -PassThru
 
-          vpk pack \
-            --packId "SerialManager" \
-            --packVersion "${{ steps.version.outputs.version }}" \
-            --packDir publish \
-            --mainExe "SerialManager.exe" \
-            --packTitle "Serial Manager" \
-            --packAuthors "Nikolai Hieber" \
-            --icon "Serial Manager/Assets/Logo.ico" \
-            "${SIGN_ARGS[@]}"
+          if ($signProcess.ExitCode -ne 0) { throw "signtool.exe (Signieren) ist fehlgeschlagen." }
 
-          vpk upload github \
-            --repoUrl "https://github.com/${{ github.repository }}" \
-            --token "${{ secrets.GITHUB_TOKEN }}" \
-            --publish \
-            --releaseName "Serial Manager ${{ steps.version.outputs.version }}" \
-            --tag "v${{ steps.version.outputs.version }}"
+      - name: Release auf GitHub veröffentlichen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.version.outputs.version }}" \
+            "build/Releases/SerialManagerSetup.exe" \
+            --repo "${{ github.repository }}" \
+            --title "Serial Manager ${{ steps.version.outputs.version }}" \
+            --notes "Serial Manager ${{ steps.version.outputs.version }}"

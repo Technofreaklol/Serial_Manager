@@ -5,7 +5,6 @@ using SerialManager.Views;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
-using Velopack;
 
 namespace SerialManager;
 
@@ -13,18 +12,16 @@ public partial class App : Application
 {
     // ---------------------------------------------------------------
     // Eigener Einstiegspunkt statt des automatisch generierten WPF-
-    // Main(). VelopackApp.Build().Run() MUSS als Allererstes passieren:
-    // Beim (Erst-)Start nach der Installation, bei einem Update oder
-    // bei der Deinstallation übernimmt Velopack hier kurz die
-    // Kontrolle (z. B. um Verknüpfungen anzulegen) und beendet den
-    // Prozess danach sofort wieder - der restliche Code darf also
-    // nicht vorher laufen.
+    // Main() - ursprünglich von Velopack benötigt (siehe Git-Historie).
+    // Seit dem Umstieg auf einen klassischen, nach "C:\Program Files"
+    // installierenden Setup.exe-Installer (build/installer.iss) und den
+    // eigenen, Velopack-freien Update-Mechanismus (Services/UpdateService.cs)
+    // wäre das nicht mehr zwingend nötig, wurde aber beibehalten, um die
+    // getestete Startup-Logik nicht unnötig anzufassen.
     // ---------------------------------------------------------------
     [STAThread]
     private static void Main(string[] args)
     {
-        VelopackApp.Build().Run();
-
         var app = new App();
         app.InitializeComponent();
         app.Run();
