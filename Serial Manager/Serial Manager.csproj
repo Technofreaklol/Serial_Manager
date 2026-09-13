@@ -20,7 +20,7 @@
          Code (SettingsWindow.xaml.cs) verwendet ohnehin ausgeschriebene Namen
          (System.Windows.Forms.ColorDialog, System.Drawing.Color) und braucht
          sie nicht.-->
-	<Version>1.0.16</Version>
+	<Version>1.0.17</Version>
 
     <!-- Self-contained (mehrere Dateien: EXE + DLLs + .NET-Laufzeit) -
          KEIN Single-File-EXE mehr, damit "dotnet publish" einen normalen
