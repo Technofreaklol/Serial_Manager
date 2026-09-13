@@ -17,6 +17,15 @@
 ; braucht noch einen klassischen UAC-Dialog (Fallback in UpdateService.cs) -
 ; dabei wird der Task dann gleich mit angelegt.
 ;
+; Wichtig: "schtasks /Create ... /RU SYSTEM" legt den Task standardmäßig
+; mit einer Berechtigung an, die NUR Administratoren erlaubt, ihn
+; abzufragen/auszulösen - ein normaler Benutzer bekommt sonst "Zugriff
+; verweigert" (genau das führte in einer früheren Version dazu, dass trotz
+; existierendem Task JEDES Update wieder den alten UAC-Dialog zeigte).
+; Direkt im Anschluss an die Task-Erstellung korrigiert dieser Installer
+; deshalb die Berechtigung (siehe grant-task-access.ps1 und der Kommentar
+; dazu in [Run] unten).
+;
 ; Voraussetzung: Inno Setup 6 (https://jrsoftware.org/isinfo.php),
 ; "ISCC.exe" (Inno Setup Compiler, auch "iscc" im PATH genannt).
 ;
@@ -106,6 +115,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; Übernimmt 1:1 alles, was "dotnet publish" erzeugt hat.
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; Wird nur während der Installation gebraucht (siehe [Run] unten) - behebt
+; direkt im Anschluss an "schtasks /Create" die Standard-Berechtigung des
+; Taskplaner-Tasks, die sonst normalen Benutzern das Abfragen/Auslösen
+; verweigern würde (siehe grant-task-access.ps1 für Details). Landet im
+; setup-eigenen temporären Ordner ("{tmp}"), der nach Abschluss der
+; Installation automatisch wieder entfernt wird.
+Source: "grant-task-access.ps1"; DestDir: "{tmp}"; Flags: ignoreversion
+
 [Dirs]
 ; Ablageort für einen von der App (OHNE Adminrechte) heruntergeladenen,
 ; noch nicht installierten Update-Installer - siehe UpdateService.cs
@@ -132,6 +149,17 @@ Name: "{autodesktop}\Serial Manager"; Filename: "{app}\{#MyAppExeName}"; Tasks: 
 ; Datum weit in der Zukunft, das schtasks als Pflichtangabe verlangt, aber
 ; von der Anwendung nie abgewartet wird.
 Filename: "{sys}\schtasks.exe"; Parameters: "/Create /TN ""SerialManagerUpdate"" /TR ""\""C:\ProgramData\SerialManager\PendingUpdate\SerialManagerSetup.exe\"" /VERYSILENT /NORESTART /CLOSEAPPLICATIONS"" /SC ONCE /ST 00:00 /SD 01/01/2099 /RL HIGHEST /RU SYSTEM /F"; Flags: runhidden; StatusMsg: "Automatischer Update-Mechanismus wird eingerichtet..."
+
+; WICHTIG (behebt einen Bug einer früheren Version dieses Installers):
+; "schtasks /Create ... /RU SYSTEM" legt den Task standardmäßig mit einer
+; Berechtigung an, die NUR Administratoren erlaubt, ihn abzufragen oder
+; auszulösen - ein normaler Benutzer bekommt "Zugriff verweigert". Dadurch
+; hat UpdateService.cs (läuft als normaler Benutzer) den längst
+; existierenden Task nie erkannt und bei JEDEM Update wieder den alten
+; UAC-Dialog gezeigt. Dieser Schritt (läuft noch mit den Adminrechten der
+; laufenden Installation) korrigiert die Berechtigung direkt im Anschluss -
+; siehe grant-task-access.ps1 für die genaue Sicherheitsbeschreibung.
+Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{tmp}\grant-task-access.ps1"""; Flags: runhidden; StatusMsg: "Berechtigungen für den Update-Mechanismus werden gesetzt..."
 
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,Serial Manager}"; Flags: nowait postinstall skipifsilent
 
