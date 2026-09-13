@@ -20,7 +20,7 @@
          Code (SettingsWindow.xaml.cs) verwendet ohnehin ausgeschriebene Namen
          (System.Windows.Forms.ColorDialog, System.Drawing.Color) und braucht
          sie nicht.-->
-	<Version>1.0.17</Version>
+	<Version>1.0.35</Version>
 
     <!-- Self-contained (mehrere Dateien: EXE + DLLs + .NET-Laufzeit) -
          KEIN Single-File-EXE mehr, damit "dotnet publish" einen normalen
@@ -92,6 +92,11 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.26" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.3" />
     <PackageReference Include="QRCoder" Version="1.8.0" />
+    <!-- Für SecretProtector.cs (DPAPI-Verschlüsselung der Datenbank-Passwörter
+         in database.json) - bei .NET (Core) ist ProtectedData anders als bei
+         .NET Framework NICHT Teil der Laufzeit, sondern ein eigenes,
+         Windows-spezifisches Paket. -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

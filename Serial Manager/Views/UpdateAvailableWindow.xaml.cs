@@ -38,32 +38,44 @@ public partial class UpdateAvailableWindow : Window
         panelButtons.IsEnabled = false;
         panelProgress.Visibility = Visibility.Visible;
 
-        var progress = new Progress<double>(percent =>
+        var downloadProgress = new Progress<double>(percent =>
         {
             progressBar.Value = percent;
 
             lblProgressStatus.Text = percent >= 100
-                ? "Installer wird gestartet..."
+                ? "Download abgeschlossen..."
                 : $"Update wird heruntergeladen... ({percent:0}%)";
+        });
+
+        // Für die eigentliche Installation gibt es keinen Prozentwert mehr
+        // (siehe UpdateService.InstallUpdateAsync - läuft ggf. unsichtbar im
+        // Hintergrund) - nur noch Textstatus, Balken läuft "unbestimmt".
+        var installStatusProgress = new Progress<string>(status =>
+        {
+            lblProgressStatus.Text = status;
         });
 
         try
         {
-            string installerPath = await _updateService.DownloadInstallerAsync(_update, progress);
+            string installerPath = await _updateService.DownloadInstallerAsync(_update, downloadProgress);
 
-            // Vor dem Neustart über den Installer den Später-erinnern-/
-            // Überspringen-Zustand zurücksetzen, damit nach dem Update keine
-            // veralteten Einträge übrig bleiben (die nächste, dann wieder
-            // neue Version soll ganz normal gemeldet werden).
+            // Vor der Installation den Später-erinnern-/Überspringen-
+            // Zustand zurücksetzen, damit nach dem Update keine veralteten
+            // Einträge übrig bleiben (die nächste, dann wieder neue Version
+            // soll ganz normal gemeldet werden).
             _settingsService.SetValue("UpdateSkipVersion", "");
             _settingsService.SetValue("UpdateSnoozedVersion", "");
             _settingsService.SetValue("UpdateSnoozedUntilUtc", "");
 
-            // Kehrt nicht zurück - beendet die Anwendung selbst.
-            _updateService.RunInstallerAndShutdown(installerPath);
+            progressBar.IsIndeterminate = true;
+
+            // Kehrt im Erfolgsfall nicht zurück - beendet die Anwendung
+            // selbst (siehe UpdateService.InstallUpdateAsync).
+            await _updateService.InstallUpdateAsync(installerPath, _update.Version, installStatusProgress);
         }
         catch (Exception ex)
         {
+            progressBar.IsIndeterminate = false;
             panelProgress.Visibility = Visibility.Collapsed;
             panelButtons.IsEnabled = true;
 
